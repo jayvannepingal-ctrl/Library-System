@@ -42,6 +42,7 @@
 
         window.handleLog = () => {
             const idInput = document.getElementById('studentID');
+            const reasonInput = document.getElementById('visitReason');
             const id = idInput.value.trim();
             if(!id) return;
 
@@ -56,11 +57,14 @@
             const logEntry = {
                 id: id,
                 name: user.name,
-                role: user.role,
-                course: user.course,
+                role: user.role, 
+                college: user.course, 
+                reason: reasonInput.value,
+                isEmployee: user.role !== 'Student',
                 timestamp: now.toLocaleTimeString(),
                 date: now.toLocaleDateString(),
-                day: now.toLocaleDateString('en-US', { weekday: 'short' })
+                day: now.toLocaleDateString('en-US', { weekday: 'short' }),
+                fullDate: now.toISOString()
             };
 
             push(ref(db, 'logs'), logEntry);
@@ -77,7 +81,7 @@
                     name: document.getElementById('reg-name').value,
                     role: document.getElementById('reg-role').value,
                     sex: document.getElementById('reg-sex').value,
-                    course: document.getElementById('reg-course').value,
+                    course: document.getElementById('reg-college').value, 
                     year: document.getElementById('reg-year').value,
                     religion: document.getElementById('reg-religion').value,
                     photo: imgData || 'https://via.placeholder.com/150'
@@ -100,7 +104,7 @@
             const id = document.getElementById('edit-id').value;
             const updatedData = {
                 name: document.getElementById('edit-name').value,
-                course: document.getElementById('edit-course').value,
+                course: document.getElementById('edit-college').value,
                 year: document.getElementById('edit-year').value
             };
             update(ref(db, 'students/' + id), updatedData).then(() => {
@@ -146,41 +150,82 @@
         
         <div id="main-card" class="w-full max-w-xl bg-white rounded-[4rem] shadow-2xl border-t-8 border-neu-green p-10 md:p-14 text-center overflow-hidden">
             
-            <div id="attendance-view" class="space-y-8 animate-pop">
+            <div id="attendance-view" class="space-y-6 animate-pop">
                 <div class="space-y-2">
-                    <h2 class="text-5xl font-black text-neu-green uppercase italic tracking-tighter">Type ID</h2>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Secure Student Access</p>
+                    <h2 class="text-5xl font-black text-neu-green uppercase italic tracking-tighter">Time In</h2>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Welcome to NEU Library</p>
                 </div>
                 
-                <div class="space-y-5">
-                    <input type="text" id="studentID" autofocus placeholder="00-00000-000" 
-                        class="w-full p-8 border-2 border-slate-100 rounded-[2rem] focus:border-green-600 outline-none text-center text-4xl font-mono uppercase shadow-inner bg-slate-50 transition-all">
-                    <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-7 rounded-[2rem] shadow-lg transition-all active:scale-95 text-3xl uppercase italic tracking-tight">
-                        Time In
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-4 mb-1 block">Reason for Visiting</label>
+                        <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none focus:border-neu-green transition-all">
+                            <option>Study / Reading</option>
+                            <option>Research</option>
+                            <option>Borrow / Return Books</option>
+                            <option>Clearance</option>
+                            <option>Computer / Internet Use</option>
+                        </select>
+                    </div>
+
+                    <input type="text" id="studentID" autofocus placeholder="ID NUMBER e.g.(24-12782-483) " 
+                        class="w-full p-6 border-2 border-slate-100 rounded-[2rem] focus:border-green-600 outline-none text-center text-3xl font-mono uppercase shadow-inner bg-slate-50 transition-all">
+                    
+                    <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] shadow-lg transition-all active:scale-95 text-2xl uppercase italic tracking-tight">
+                        Confirm Attendance
                     </button>
                 </div>
 
-                <div class="pt-8 border-t border-slate-50">
+                <div class="pt-6 border-t border-slate-50">
                     <button onclick="loginAdmin()" class="text-slate-300 hover:text-neu-green font-bold text-xs uppercase tracking-[0.2em] transition-colors">
                         🔒 Staff Login Portal
                     </button>
                 </div>
 
-                <div id="log-feedback" class="hidden mt-6 p-8 rounded-[3rem] bg-white border border-slate-100 animate-pop shadow-2xl">
-                    <img id="fb-pic" src="" class="w-32 h-32 rounded-full mx-auto mb-5 border-4 border-neu-green shadow-lg object-cover">
-                    <h3 id="fb-name" class="text-3xl font-black text-slate-800 tracking-tight"></h3>
-                    <p id="fb-role" class="text-neu-red font-bold text-sm uppercase mb-4"></p>
-                    <div class="py-3 px-8 bg-neu-green text-white rounded-2xl text-sm font-black inline-block shadow-md" id="fb-time"></div>
+                <div id="log-feedback" class="hidden mt-6 p-6 rounded-[3rem] bg-white border border-slate-100 animate-pop shadow-2xl">
+                    <img id="fb-pic" src="" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-neu-green shadow-lg object-cover">
+                    <h3 id="fb-name" class="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1"></h3>
+                    <p id="fb-role" class="text-neu-red font-bold text-[10px] uppercase mb-3"></p>
+                    <div class="py-2 px-6 bg-neu-green text-white rounded-2xl text-[11px] font-black inline-block shadow-md" id="fb-time"></div>
                 </div>
             </div>
 
             <div id="admin-panel" class="hidden text-left animate-pop w-full space-y-8">
-                <div class="flex justify-between items-end border-b-2 pb-8 border-slate-50">
+                <div class="flex justify-between items-end border-b-2 pb-6 border-slate-50">
                     <div>
                         <h2 class="text-4xl font-black text-neu-green uppercase italic tracking-tighter leading-none">Staff Portal</h2>
-                        <p class="text-xs text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Cloud Database Control</p>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Cloud Database Control</p>
                     </div>
-                    <button onclick="logoutAdmin()" class="bg-neu-red hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all active:scale-90 shadow-lg">Logout</button>
+                    <button onclick="logoutAdmin()" class="bg-neu-red hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg">Logout</button>
+                </div>
+
+                <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 flex flex-wrap gap-4 items-center justify-between shadow-sm">
+                    <div class="flex flex-wrap gap-3 items-center">
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Filters:</span>
+                        <select id="filterReason" onchange="updateDashboard()" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold border border-slate-200 focus:border-neu-green outline-none">
+                            <option value="">All Reasons</option>
+                            <option>Study / Reading</option><option>Research</option><option>Borrow / Return Books</option><option>Clearance</option><option>Computer / Internet Use</option>
+                        </select>
+                        <select id="filterCollege" onchange="updateDashboard()" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold border border-slate-200 focus:border-neu-green outline-none">
+                            <option value="">All Colleges</option>
+                            <option value="CICS">College of Informatics & Computing Studies (ICS)</option>
+                            <option value="COE">College of Engineering (COE)</option>
+                            <option value="CAS">College of Arts and Sciences (CAS)</option>
+                            <option value="CBA">College of Business Administration (CBA)</option>
+                            <option value="CED">College of Education (CED)</option>
+                            <option value="CON">College of Nursing (CON)</option>
+                            <option value="COL">College of Law (COL)</option>
+                            <option value="COM">College of Medicine (COM)</option>
+                        </select>
+                        <select id="filterUserType" onchange="updateDashboard()" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold border border-slate-200 focus:border-neu-green outline-none">
+                            <option value="">All Users</option>
+                            <option value="student">Students Only</option>
+                            <option value="employee">Employees Only</option>
+                        </select>
+                    </div>
+                    <div class="text-[10px] font-black text-neu-green uppercase px-4 bg-green-50 rounded-full py-2">
+                        Displaying: <span id="filteredCount">0</span> Records
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -200,22 +245,15 @@
 
                 <div class="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
                     <div class="bg-slate-50 px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Student Database</span>
-                        <div class="relative w-full md:w-72">
-                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                                </svg>
-                            </span>
-                            <input type="text" id="userSearchInput" onkeyup="filterUsers()" placeholder="Search Name or ID..." 
-                                class="w-full pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-4 focus:ring-green-500/10 transition-all">
-                        </div>
+                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Visitor Profiles</span>
+                        <input type="text" id="userSearchInput" onkeyup="filterUsers()" placeholder="Search Name or ID..." 
+                            class="w-full md:w-64 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-bold focus:outline-none transition-all">
                     </div>
                     <div class="max-h-80 overflow-y-auto custom-scrollbar">
                         <table class="w-full text-sm">
                             <thead class="bg-slate-50/80 sticky top-0 text-[10px] font-black text-slate-400 uppercase">
                                 <tr>
-                                    <th class="p-5 text-left">Student Profile</th>
+                                    <th class="p-5 text-left">Visitor Profile</th>
                                     <th class="p-5 text-center">Actions</th>
                                 </tr>
                             </thead>
@@ -224,33 +262,45 @@
                     </div>
                 </div>
 
-                <button onclick="exportData()" class="w-full bg-neu-green hover:bg-green-800 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl transition-all active:scale-95">
-                    Generate Cloud Report (Excel)
+                <button onclick="exportData()" class="w-full bg-neu-green hover:bg-green-800 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl transition-all">
+                    Generate Filtered Excel Report
                 </button>
             </div>
         </div>
     </main>
 
     <div id="reg-modal" class="hidden fixed inset-0 bg-green-900/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[3rem] p-12 max-w-md w-full shadow-2xl border-t-8 border-neu-red animate-pop">
-            <h2 class="text-3xl font-black text-neu-green mb-8 uppercase italic tracking-tighter">Student Registration</h2>
+        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl border-t-8 border-neu-red animate-pop">
+            <h2 class="text-3xl font-black text-neu-green mb-8 uppercase italic tracking-tighter leading-none">New Visitor</h2>
             <div class="space-y-4">
-                <input type="text" id="reg-id" readonly class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-green-700 text-center text-lg">
-                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold focus:border-neu-green outline-none">
+                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-bold text-green-700 text-center">
+                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
                 <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-role" class="p-5 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Student</option><option>Faculty</option></select>
-                    <select id="reg-sex" class="p-5 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Male</option><option>Female</option></select>
+                    <select id="reg-role" class="p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Student</option><option>Faculty</option><option>Staff</option></select>
+                    <select id="reg-sex" class="p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Male</option><option>Female</option></select>
                 </div>
-                <input type="text" id="reg-course" placeholder="Course (e.g. BSIT)" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="reg-year" placeholder="Year Level" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="reg-religion" placeholder="Religion" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold outline-none">
+                
+                <select id="reg-college" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none">
+                    <option value="" disabled selected>Select College / Department</option>
+                    <option value="CICS">College Of Infomatic Computing Studies (CICS)</option>
+                    <option value="COE">Engineering (COE)</option>
+                    <option value="CAS">Arts and Sciences (CAS)</option>
+                    <option value="CBA">Business Administration (CBA)</option>
+                    <option value="CED">Education (CED)</option>
+                    <option value="CON">Nursing (CON)</option>
+                    <option value="COL">Law (COL)</option>
+                    <option value="COM">Medicine (COM)</option>
+                </select>
+
+                <input type="text" id="reg-year" placeholder="Year Level (NA for staff)" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
+                <input type="text" id="reg-religion" placeholder="Religion" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
                 <div class="p-2">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2 mb-2 block">Student Photo</label>
-                    <input type="file" id="reg-file" accept="image/*" class="w-full text-xs p-3 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                    <label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Profile Photo</label>
+                    <input type="file" id="reg-file" accept="image/*" class="w-full text-[10px] p-3 bg-slate-50 rounded-xl border-dashed border-2 border-slate-200">
                 </div>
-                <div class="flex gap-4 pt-6">
-                    <button onclick="saveNewUser()" class="flex-1 bg-neu-green text-white py-5 rounded-2xl font-black uppercase italic shadow-lg hover:bg-green-800 transition-all">Save Profile</button>
-                    <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-5 rounded-2xl font-black uppercase text-slate-400 hover:bg-slate-200 transition-all">Cancel</button>
+                <div class="flex gap-4 pt-4">
+                    <button onclick="saveNewUser()" class="flex-1 bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Save Profile</button>
+                    <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black uppercase text-slate-400">Cancel</button>
                 </div>
             </div>
         </div>
@@ -260,13 +310,24 @@
         <div class="bg-white rounded-[3rem] p-10 max-w-sm w-full animate-pop border-t-8 border-neu-green">
             <h2 class="text-2xl font-black text-neu-green mb-6 uppercase italic">Update Account</h2>
             <div class="space-y-4">
-                <input type="text" id="edit-id" readonly class="w-full p-5 bg-slate-50 rounded-2xl font-bold text-slate-400">
-                <input type="text" id="edit-name" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="edit-course" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="edit-year" class="w-full p-5 border-2 border-slate-100 rounded-2xl font-bold outline-none">
+                <input type="text" id="edit-id" readonly class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-400">
+                <input type="text" id="edit-name" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
+                
+                <select id="edit-college" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none">
+                    <option value="CICS">College Of Infmatics and Computing Studeies (CISCS)</option>
+                    <option value="COE">Engineering (COE)</option>
+                    <option value="CAS">Arts and Sciences (CAS)</option>
+                    <option value="CBA">Business Administration (CBA)</option>
+                    <option value="CED">Education (CED)</option>
+                    <option value="CON">Nursing (CON)</option>
+                    <option value="COL">Law (COL)</option>
+                    <option value="COM">Medicine (COM)</option>
+                </select>
+
+                <input type="text" id="edit-year" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
                 <div class="flex gap-3 pt-4">
-                    <button onclick="updateUserAccount()" class="flex-1 bg-neu-green text-white py-5 rounded-2xl font-black uppercase shadow-lg">Update</button>
-                    <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-5 rounded-2xl font-black uppercase text-slate-400">Back</button>
+                    <button onclick="updateUserAccount()" class="flex-1 bg-neu-green text-white py-4 rounded-2xl font-black uppercase">Update</button>
+                    <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black uppercase text-slate-400">Back</button>
                 </div>
             </div>
         </div>
@@ -279,7 +340,8 @@
 
         setInterval(() => { 
             const now = new Date(); 
-            document.getElementById('liveClock').innerHTML = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ' | ' + now.toLocaleTimeString(); 
+            const clockEl = document.getElementById('liveClock');
+            if(clockEl) clockEl.innerHTML = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ' | ' + now.toLocaleTimeString(); 
         }, 1000);
 
         function loginAdmin() {
@@ -287,7 +349,7 @@
             if (pass === ADMIN_PASS) {
                 window.isAdminAuthenticated = true;
                 const card = document.getElementById('main-card');
-                card.classList.replace('max-w-xl', 'max-w-5xl'); // Expanded malapad dashboard
+                card.classList.replace('max-w-xl', 'max-w-6xl'); 
                 document.getElementById('attendance-view').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
                 if(!chartInstance) initChart();
@@ -299,7 +361,7 @@
         function logoutAdmin() { 
             window.isAdminAuthenticated = false; 
             const card = document.getElementById('main-card');
-            card.classList.replace('max-w-5xl', 'max-w-xl'); // Maliit ulit
+            card.classList.replace('max-w-6xl', 'max-w-xl'); 
             document.getElementById('admin-panel').classList.add('hidden'); 
             document.getElementById('attendance-view').classList.remove('hidden'); 
         }
@@ -315,16 +377,30 @@
 
         function updateDashboard() {
             if(!window.logsData) return;
-            const reversedLogs = [...window.logsData].reverse().slice(0, 30);
+
+            const fReason = document.getElementById('filterReason').value;
+            const fCollege = document.getElementById('filterCollege').value;
+            const fType = document.getElementById('filterUserType').value;
+
+            let filtered = window.logsData.filter(log => {
+                const matchReason = !fReason || log.reason === fReason;
+                const matchCollege = !fCollege || (log.college && log.college.toUpperCase() === fCollege.toUpperCase());
+                const matchType = !fType || (fType === 'employee' ? log.isEmployee : !log.isEmployee);
+                return matchReason && matchCollege && matchType;
+            });
+
+            document.getElementById('filteredCount').innerText = filtered.length;
+
+            const reversedLogs = [...filtered].reverse().slice(0, 50);
             document.getElementById('recent-logs-list').innerHTML = reversedLogs.map(l => `
                 <tr class="border-b border-slate-50 hover:bg-white/50 transition-colors">
-                    <td class="py-4 px-2 text-sm"><b>${l.name}</b><br><span class="opacity-50 text-[10px] uppercase font-bold tracking-tighter">${l.course}</span></td>
+                    <td class="py-4 px-2 text-xs"><b>${l.name}</b><br><span class="opacity-50 text-[9px] uppercase font-bold tracking-tighter">${l.reason} | ${l.college || 'NA'}</span></td>
                     <td class="py-4 px-2 text-right text-neu-green font-black text-sm">${l.timestamp}</td>
                 </tr>
             `).join('');
             
             const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const counts = days.map(d => window.logsData.filter(l => l.day === d).length);
+            const counts = days.map(d => filtered.filter(l => l.day === d).length);
             if(chartInstance) { chartInstance.data.datasets[0].data = counts; chartInstance.update(); }
         }
 
@@ -337,12 +413,12 @@
                         <img src="${u.photo}" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md">
                         <div>
                             <b class="text-slate-800 text-base">${u.name}</b>
-                            <br><span class="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md uppercase tracking-tighter">${id} | ${u.course}</span>
+                            <br><span class="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md uppercase tracking-tighter">${id} | ${u.role} | ${u.course}</span>
                         </div>
                     </td>
                     <td class="p-6 text-center space-x-4">
-                        <button onclick="openEditModal('${id}')" class="text-neu-green font-black text-xs uppercase hover:underline">Edit</button>
-                        <button onclick="deleteStudent('${id}')" class="text-neu-red font-black text-xs uppercase hover:underline">Delete</button>
+                        <button onclick="openEditModal('${id}')" class="text-neu-green font-black text-[10px] uppercase hover:underline">Edit</button>
+                        <button onclick="deleteStudent('${id}')" class="text-neu-red font-black text-[10px] uppercase hover:underline">Delete</button>
                     </td>
                 </tr>
             `).join('');
@@ -352,7 +428,7 @@
             const u = window.studentsData[id];
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-name').value = u.name;
-            document.getElementById('edit-course').value = u.course;
+            document.getElementById('edit-college').value = u.course || 'ICS';
             document.getElementById('edit-year').value = u.year;
             document.getElementById('edit-modal').classList.remove('hidden');
         }
@@ -373,7 +449,7 @@
                 type: 'bar', 
                 data: { 
                     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], 
-                    datasets: [{ label: 'Students', data: [0,0,0,0,0,0], backgroundColor: '#008000', borderRadius: 12, hoverBackgroundColor: '#006400' }] 
+                    datasets: [{ label: 'Visitors', data: [0,0,0,0,0,0], backgroundColor: '#008000', borderRadius: 12, hoverBackgroundColor: '#006400' }] 
                 }, 
                 options: { 
                     responsive: true, 
