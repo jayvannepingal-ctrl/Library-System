@@ -12,8 +12,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Ang iyong Firebase Config mula sa screenshot
-  const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnrYNwknI",
             authDomain: "student-library-system-3e72c.firebaseapp.com",
             projectId: "student-library-system-3e72c",
@@ -21,38 +20,36 @@
             messagingSenderId: "88114883918",
             appId: "1:88114883918:web:9dd831381ce90972d2a3c7",
             measurementId: "G-H8YCT6NRYV",
-            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com/" // DAGDAG MO ITO
+            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com/"
         };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- GLOBAL VARIABLES & SYNC ---
-        let studentsData = {};
-        let logsData = [];
+        // --- GLOBAL VARIABLES ---
+        window.studentsData = {};
+        window.logsData = [];
 
         // Real-time Sync for Students
         onValue(ref(db, 'students'), (snapshot) => {
-            studentsData = snapshot.val() || {};
+            window.studentsData = snapshot.val() || {};
             if (window.isAdminAuthenticated) updateUserTable();
         });
 
-       // Siguraduhin na tinatawag nito ang updateDashboard()
+        // Real-time Sync for Logs
         onValue(ref(db, 'logs'), (snapshot) => {
             const val = snapshot.val();
-            // Convert object to array and reverse para pinakabago ang nasa taas
-            logsData = val ? Object.values(val).reverse() : []; 
-            if (window.isAdminAuthenticated) {
-                updateDashboard();
-            }
+            window.logsData = val ? Object.values(val) : [];
+            if (window.isAdminAuthenticated) updateDashboard();
         });
 
-        // --- EXPOSE FUNCTIONS TO WINDOW ---
+        // --- FIREBASE FUNCTIONS ---
         window.handleLog = () => {
             const idInput = document.getElementById('studentID');
             const id = idInput.value.trim();
             if(!id) return;
 
-            const user = studentsData[id];
+            const user = window.studentsData[id];
             if (!user) {
                 document.getElementById('reg-id').value = id;
                 document.getElementById('reg-modal').classList.remove('hidden');
@@ -126,8 +123,8 @@
         };
 
         window.exportData = () => {
-            if(logsData.length === 0) return alert("No logs to export!");
-            const ws = XLSX.utils.json_to_sheet(logsData);
+            if(window.logsData.length === 0) return alert("No logs to export!");
+            const ws = XLSX.utils.json_to_sheet(window.logsData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "LibraryLogs");
             XLSX.writeFile(wb, "NEU_Cloud_Report.xlsx");
@@ -303,7 +300,8 @@
         }
 
         function updateDashboard() {
-            const logs = [...logsData].reverse().slice(0, 50);
+            if(!window.logsData) return;
+            const logs = [...window.logsData].reverse().slice(0, 50);
             document.getElementById('recent-logs-list').innerHTML = logs.map(l => `
                 <tr class="bg-white shadow-sm rounded-lg overflow-hidden border-b border-slate-100">
                     <td class="p-3">
@@ -318,7 +316,7 @@
             `).join('');
             
             const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const counts = days.map(d => logsData.filter(l => l.day === d).length);
+            const counts = days.map(d => window.logsData.filter(l => l.day === d).length);
             if(chartInstance) { 
                 chartInstance.data.datasets[0].data = counts; 
                 chartInstance.update(); 
