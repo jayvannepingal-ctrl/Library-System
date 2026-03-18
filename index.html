@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEU Library System | Staff Edition (Cloud)</title>
+    <title>NEU Library System | Staff Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -11,6 +11,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnrYNwknI",
@@ -19,32 +20,52 @@
             storageBucket: "student-library-system-3e72c.firebasestorage.app",
             messagingSenderId: "88114883918",
             appId: "1:88114883918:web:9dd831381ce90972d2a3c7",
-            measurementId: "G-H8YCT6NRYV",
             databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com/"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
 
         window.studentsData = {};
         window.logsData = [];
+        const ADMINS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
 
-        onValue(ref(db, 'students'), (snapshot) => {
-            window.studentsData = snapshot.val() || {};
-            if (window.isAdminAuthenticated) updateUserTable();
+        // Auth Listener for Admin and User
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                if (ADMINS.includes(user.email)) {
+                    enterAdminMode();
+                } else {
+                    // If regular user just logged in for registration
+                    document.getElementById('google-btn-container').classList.add('hidden');
+                    document.getElementById('registration-form').classList.remove('hidden');
+                }
+            }
         });
 
-        onValue(ref(db, 'logs'), (snapshot) => {
-            const val = snapshot.val();
+        onValue(ref(db, 'students'), (snap) => window.studentsData = snap.val() || {});
+        onValue(ref(db, 'logs'), (snap) => {
+            const val = snap.val();
             window.logsData = val ? Object.values(val) : [];
             if (window.isAdminAuthenticated) updateDashboard();
         });
 
+        // 1. Google Login for Admin
+        window.loginAdmin = () => signInWithPopup(auth, provider);
+
+        // 2. ID Format Validation (Regex: 00-00000-000)
+        const validateID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
+
         window.handleLog = () => {
             const idInput = document.getElementById('studentID');
-            const reasonInput = document.getElementById('visitReason');
             const id = idInput.value.trim();
-            if(!id) return;
+            
+            if(!validateID(id)) {
+                alert("Invalid ID Format! Please follow: 00-00000-000");
+                return;
+            }
 
             const user = window.studentsData[id];
             if (!user) {
@@ -55,412 +76,154 @@
 
             const now = new Date();
             const logEntry = {
-                id: id,
-                name: user.name,
-                role: user.role, 
-                college: user.course, 
-                reason: reasonInput.value,
+                id, name: user.name, role: user.role, college: user.course,
+                reason: document.getElementById('visitReason').value,
                 isEmployee: user.role !== 'Student',
                 timestamp: now.toLocaleTimeString(),
-                date: now.toLocaleDateString(),
-                day: now.toLocaleDateString('en-US', { weekday: 'short' }),
-                fullDate: now.toISOString()
+                date: now.toISOString().split('T')[0],
+                day: now.toLocaleDateString('en-US', { weekday: 'short' })
             };
 
             push(ref(db, 'logs'), logEntry);
             showFeedback(user, logEntry.timestamp);
             idInput.value = "";
-            idInput.focus();
+            alert("Welcome to NEU Library!");
         };
 
         window.saveNewUser = () => {
             const id = document.getElementById('reg-id').value;
-            const fileInput = document.getElementById('reg-file');
-            const processSave = (imgData) => {
-                const newUser = {
-                    name: document.getElementById('reg-name').value,
-                    role: document.getElementById('reg-role').value,
-                    sex: document.getElementById('reg-sex').value,
-                    course: document.getElementById('reg-college').value, 
-                    year: document.getElementById('reg-year').value,
-                    religion: document.getElementById('reg-religion').value,
-                    photo: imgData || 'https://via.placeholder.com/150'
-                };
-                set(ref(db, 'students/' + id), newUser).then(() => {
-                    document.getElementById('reg-modal').classList.add('hidden');
-                    window.handleLog();
-                });
+            const newUser = {
+                name: document.getElementById('reg-name').value,
+                role: document.getElementById('reg-role').value,
+                sex: document.getElementById('reg-sex').value,
+                course: document.getElementById('reg-college').value, 
+                year: document.getElementById('reg-year').value,
+                photo: 'https://via.placeholder.com/150'
             };
-            if(fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => processSave(e.target.result);
-                reader.readAsDataURL(fileInput.files[0]);
-            } else { processSave(); }
-        };
-
-        window.deleteStudent = (id) => { if (confirm(`Remove student ${id}?`)) remove(ref(db, 'students/' + id)); };
-        
-        window.updateUserAccount = () => {
-            const id = document.getElementById('edit-id').value;
-            const updatedData = {
-                name: document.getElementById('edit-name').value,
-                course: document.getElementById('edit-college').value,
-                year: document.getElementById('edit-year').value
-            };
-            update(ref(db, 'students/' + id), updatedData).then(() => {
-                document.getElementById('edit-modal').classList.add('hidden');
+            set(ref(db, 'students/' + id), newUser).then(() => {
+                document.getElementById('reg-modal').classList.add('hidden');
+                window.handleLog();
             });
         };
 
-        window.exportData = () => {
-            if(window.logsData.length === 0) return alert("No logs to export!");
-            const ws = XLSX.utils.json_to_sheet(window.logsData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "LibraryLogs");
-            XLSX.writeFile(wb, "NEU_Library_Report.xlsx");
-        };
-    </script>
+        function enterAdminMode() {
+            window.isAdminAuthenticated = true;
+            document.getElementById('attendance-view').classList.add('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
+            updateDashboard();
+        }
 
+        window.logoutAdmin = () => signOut(auth).then(() => location.reload());
+    </script>
     <style>
         :root { --neu-green: #008000; --neu-red: #CC0000; }
         .bg-neu-green { background-color: var(--neu-green); }
         .text-neu-green { color: var(--neu-green); }
         .bg-neu-red { background-color: var(--neu-red); }
-        .animate-pop { animation: fadeInScale 0.3s ease-out forwards; }
-        @keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        #main-card { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #main-card { transition: all 0.4s ease; }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen font-sans flex flex-col">
+<body class="bg-slate-100 min-h-screen font-sans">
 
-    <nav class="bg-neu-green text-white py-6 px-8 shadow-2xl flex justify-between items-center sticky top-0 z-40 border-b-8 border-neu-red">
-        <div class="flex items-center gap-6">
-            <img src="download.png" class="h-20 w-20 bg-white rounded-full p-2 shadow-xl border-2 border-white/20" onerror="this.src='https://via.placeholder.com/80'">
-            <div>
-                <h1 class="font-black text-2xl md:text-3xl uppercase leading-none tracking-tighter">New Era University</h1>
-                <p class="text-xs md:text-sm uppercase font-bold italic opacity-90 tracking-[0.3em] mt-1">Library Management System</p>
-            </div>
+    <nav class="bg-neu-green text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-4 border-neu-red">
+        <div class="flex items-center gap-4">
+            <img src="download.png" class="h-12 w-12 bg-white rounded-full p-1" onerror="this.src='https://via.placeholder.com/50'">
+            <h1 class="font-black text-xl uppercase tracking-tighter">NEU Library System</h1>
         </div>
-        <div id="liveClock" class="font-mono text-sm bg-black/30 px-5 py-2 rounded-2xl hidden lg:block border border-white/10 shadow-inner"></div>
     </nav>
 
-    <main class="container mx-auto p-6 flex flex-col items-center justify-center flex-grow">
-        
-        <div id="main-card" class="w-full max-w-xl bg-white rounded-[4rem] shadow-2xl border-t-8 border-neu-green p-10 md:p-14 text-center overflow-hidden">
+    <main class="container mx-auto p-6 flex flex-col items-center justify-center">
+        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl p-10 text-center border-t-8 border-neu-green">
             
-            <div id="attendance-view" class="space-y-6 animate-pop">
-                <div class="space-y-2">
-                    <h2 class="text-5xl font-black text-neu-green uppercase italic tracking-tighter">Time In</h2>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Welcome to NEU Library</p>
-                </div>
-                
+            <div id="attendance-view" class="space-y-6">
+                <h2 class="text-4xl font-black text-neu-green italic uppercase">Time In</h2>
                 <div class="space-y-4 text-left">
-                    <div>
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-4 mb-1 block">Reason for Visiting</label>
-                        <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none focus:border-neu-green transition-all">
-                            <option>Study / Reading</option>
-                            <option>Research</option>
-                            <option>Borrow / Return Books</option>
-                            <option>Clearance</option>
-                            <option>Computer / Internet Use</option>
-                        </select>
-                    </div>
-
-                    <input type="text" id="studentID" autofocus placeholder="ID No. e.g.(24-12782-483) " 
-                        class="w-full p-6 border-2 border-slate-100 rounded-[2rem] focus:border-green-600 outline-none text-center text-3xl font-mono uppercase shadow-inner bg-slate-50 transition-all">
-                    
-                    <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] shadow-lg transition-all active:scale-95 text-2xl uppercase italic tracking-tight">
-                        Confirm Attendance
-                    </button>
+                    <select id="visitReason" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold">
+                        <option>Study / Reading</option>
+                        <option>Research</option>
+                        <option>Borrow / Return Books</option>
+                    </select>
+                    <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-6 border-2 rounded-3xl text-center text-3xl font-mono uppercase bg-slate-50 focus:border-neu-green outline-none shadow-inner">
+                    <button onclick="handleLog()" class="w-full bg-neu-green text-white font-black py-5 rounded-3xl text-xl shadow-lg active:scale-95 transition">Confirm Attendance</button>
                 </div>
-
-                <div class="pt-6 border-t border-slate-50">
-                    <button onclick="loginAdmin()" class="text-slate-300 hover:text-neu-green font-bold text-xs uppercase tracking-[0.2em] transition-colors">
-                        🔒 Staff Login Portal
-                    </button>
-                </div>
-
-                <div id="log-feedback" class="hidden mt-6 p-6 rounded-[3rem] bg-white border border-slate-100 animate-pop shadow-2xl">
-                    <img id="fb-pic" src="" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-neu-green shadow-lg object-cover">
-                    <h3 id="fb-name" class="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1"></h3>
-                    <p id="fb-role" class="text-neu-red font-bold text-[10px] uppercase mb-3"></p>
-                    <div class="py-2 px-6 bg-neu-green text-white rounded-2xl text-[11px] font-black inline-block shadow-md" id="fb-time"></div>
-                </div>
+                <button onclick="loginAdmin()" class="text-slate-400 text-xs font-bold hover:text-neu-green">🔒 STAFF LOGIN PORTAL</button>
             </div>
 
-            <div id="admin-panel" class="hidden text-left animate-pop w-full space-y-8">
-                <div class="flex justify-between items-end border-b-2 pb-6 border-slate-50">
-                    <div>
-                        <h2 class="text-4xl font-black text-neu-green uppercase italic tracking-tighter leading-none">Staff Portal</h2>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Cloud Database Control</p>
-                    </div>
-                    <button onclick="logoutAdmin()" class="bg-neu-red hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg">Logout</button>
+            <div id="admin-panel" class="hidden text-left space-y-6 w-full">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-3xl font-black text-neu-green italic">STAFF DASHBOARD</h2>
+                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-6 py-2 rounded-xl font-bold text-xs shadow-md">LOGOUT</button>
                 </div>
 
-                <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 flex flex-wrap gap-4 items-center justify-between shadow-sm">
-                    <div class="flex flex-wrap gap-3 items-center">
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Filters:</span>
-                        <select id="filterReason" onchange="updateDashboard()" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold border border-slate-200 focus:border-neu-green outline-none">
-                            <option value="">All Reasons</option>
-                            <option>Study / Reading</option><option>Research</option><option>Borrow / Return Books</option><option>Clearance</option><option>Computer / Internet Use</option>
-                        </select>
-                        <select id="filterCollege" onchange="updateDashboard()" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold border border-slate-200 focus:border-neu-green outline-none">
-                            <option value="">All Colleges</option>
-                            <option value="CICS">College of Informatics & Computing Studies (ICS)</option>
-                            <option value="COE">College of Engineering (COE)</option>
-                            <option value="CAS">College of Arts and Sciences (CAS)</option>
-                            <option value="CBA">College of Business Administration (CBA)</option>
-                            <option value="CED">College of Education (CED)</option>
-                            <option value="CON">College of Nursing (CON)</option>
-                            <option value="COL">College of Law (COL)</option>
-                            <option value="COM">College of Medicine (COM)</option>
-                        </select>
-                        <select id="filterUserType" onchange="updateDashboard()" class="p-3 bg-slate-50 rounded-xl text-[10px] font-bold border border-slate-200 focus:border-neu-green outline-none">
-                            <option value="">All Users</option>
-                            <option value="student">Students Only</option>
-                            <option value="employee">Employees Only</option>
-                        </select>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-green-50 p-6 rounded-3xl border border-green-100">
+                        <p class="text-[10px] font-black text-green-600 uppercase">Total Visitors</p>
+                        <p id="filteredCount" class="text-4xl font-black text-neu-green">0</p>
                     </div>
-                    <div class="text-[10px] font-black text-neu-green uppercase px-4 bg-green-50 rounded-full py-2">
-                        Displaying: <span id="filteredCount">0</span> Records
+                    <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 text-blue-700">
+                        <p class="text-[10px] font-black uppercase">Staff/Faculty Today</p>
+                        <p id="staffCount" class="text-4xl font-black">0</p>
+                    </div>
+                    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                        <p class="text-[10px] font-black text-slate-500 uppercase">Active College</p>
+                        <p id="topCollege" class="text-2xl font-black text-slate-800">CICS</p>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 h-72 flex flex-col shadow-inner">
-                        <span class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">Traffic Analytics</span>
-                        <div class="flex-grow"><canvas id="trafficChart"></canvas></div>
-                    </div>
-                    <div class="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 h-72 flex flex-col shadow-inner overflow-hidden">
-                        <span class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">Live Activity Log</span>
-                        <div class="overflow-y-auto custom-scrollbar flex-grow pr-2">
-                            <table class="w-full text-xs">
-                                <tbody id="recent-logs-list" class="divide-y divide-slate-200/50"></tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div class="bg-white border rounded-3xl p-6 shadow-inner max-h-80 overflow-y-auto">
+                    <table class="w-full text-sm">
+                        <tbody id="recent-logs-list" class="divide-y"></tbody>
+                    </table>
                 </div>
-
-                <div class="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
-                    <div class="bg-slate-50 px-8 py-5 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Visitor Profiles</span>
-                        <input type="text" id="userSearchInput" onkeyup="filterUsers()" placeholder="Search Name or ID..." 
-                            class="w-full md:w-64 px-6 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-bold focus:outline-none transition-all">
-                    </div>
-                    <div class="max-h-80 overflow-y-auto custom-scrollbar">
-                        <table class="w-full text-sm">
-                            <thead class="bg-slate-50/80 sticky top-0 text-[10px] font-black text-slate-400 uppercase">
-                                <tr>
-                                    <th class="p-5 text-left">Visitor Profile</th>
-                                    <th class="p-5 text-center">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="user-manage-list" class="divide-y divide-slate-50"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <button onclick="exportData()" class="w-full bg-neu-green hover:bg-green-800 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-xl transition-all">
-                    Generate Filtered Excel Report
-                </button>
             </div>
         </div>
     </main>
 
-    <div id="reg-modal" class="hidden fixed inset-0 bg-green-900/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl border-t-8 border-neu-red animate-pop">
-            <h2 class="text-3xl font-black text-neu-green mb-8 uppercase italic tracking-tighter leading-none">New Visitor</h2>
-            <div class="space-y-4">
-                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-bold text-green-700 text-center">
-                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-role" class="p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Student</option><option>Faculty</option><option>Staff</option></select>
-                    <select id="reg-sex" class="p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Male</option><option>Female</option></select>
-                </div>
-                
-                <select id="reg-college" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none">
-                    <option value="" disabled selected>Select College / Department</option>
-                    <option value="CICS">College Of Infomatic Computing Studies (CICS)</option>
-                    <option value="COE">Engineering (COE)</option>
-                    <option value="CAS">Arts and Sciences (CAS)</option>
-                    <option value="CBA">Business Administration (CBA)</option>
-                    <option value="CED">Education (CED)</option>
-                    <option value="CON">Nursing (CON)</option>
-                    <option value="COL">Law (COL)</option>
-                    <option value="COM">Medicine (COM)</option>
-                </select>
-
-                <input type="text" id="reg-year" placeholder="Year Level (NA for staff)" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="reg-religion" placeholder="Religion" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <div class="p-2">
-                    <label class="text-[9px] font-black text-slate-400 uppercase ml-2 mb-1 block">Profile Photo</label>
-                    <input type="file" id="reg-file" accept="image/*" class="w-full text-[10px] p-3 bg-slate-50 rounded-xl border-dashed border-2 border-slate-200">
-                </div>
-                <div class="flex gap-4 pt-4">
-                    <button onclick="saveNewUser()" class="flex-1 bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Save Profile</button>
-                    <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black uppercase text-slate-400">Cancel</button>
-                </div>
+    <div id="reg-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[3rem] p-8 max-w-md w-full shadow-2xl border-t-8 border-neu-red">
+            <h3 class="text-2xl font-black text-neu-green mb-4">CREATE PROFILE</h3>
+            
+            <div id="google-btn-container" class="space-y-4">
+                <p class="text-slate-500 text-sm">Please sign-in with your Google Account to continue registration.</p>
+                <button onclick="loginAdmin()" class="w-full flex items-center justify-center gap-3 bg-white border-2 p-3 rounded-2xl font-bold hover:bg-slate-50">
+                    <img src="https://www.google.com/favicon.ico" class="w-5"> Login with Google
+                </button>
             </div>
-        </div>
-    </div>
 
-    <div id="edit-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[3rem] p-10 max-w-sm w-full animate-pop border-t-8 border-neu-green">
-            <h2 class="text-2xl font-black text-neu-green mb-6 uppercase italic">Update Account</h2>
-            <div class="space-y-4">
-                <input type="text" id="edit-id" readonly class="w-full p-4 bg-slate-50 rounded-2xl font-bold text-slate-400">
-                <input type="text" id="edit-name" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                
-                <select id="edit-college" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none">
-                    <option value="CICS">College Of Infmatics and Computing Studeies (CISCS)</option>
-                    <option value="COE">Engineering (COE)</option>
-                    <option value="CAS">Arts and Sciences (CAS)</option>
-                    <option value="CBA">Business Administration (CBA)</option>
-                    <option value="CED">Education (CED)</option>
-                    <option value="CON">Nursing (CON)</option>
-                    <option value="COL">Law (COL)</option>
-                    <option value="COM">Medicine (COM)</option>
-                </select>
-
-                <input type="text" id="edit-year" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <div class="flex gap-3 pt-4">
-                    <button onclick="updateUserAccount()" class="flex-1 bg-neu-green text-white py-4 rounded-2xl font-black uppercase">Update</button>
-                    <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black uppercase text-slate-400">Back</button>
+            <div id="registration-form" class="hidden space-y-3">
+                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-center text-neu-green">
+                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-3 border rounded-xl outline-none focus:border-neu-green">
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="reg-role" class="p-3 border rounded-xl"><option>Student</option><option>Staff</option><option>Faculty</option></select>
+                    <select id="reg-sex" class="p-3 border rounded-xl"><option>Male</option><option>Female</option></select>
                 </div>
+                <select id="reg-college" class="w-full p-3 border rounded-xl">
+                    <option value="CICS">CICS</option><option value="COE">COE</option><option value="CAS">CAS</option><option value="CBA">CBA</option>
+                </select>
+                <input type="text" id="reg-year" placeholder="Year Level" class="w-full p-3 border rounded-xl">
+                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black shadow-lg">REGISTER & TIME IN</button>
             </div>
         </div>
     </div>
 
     <script>
-        let chartInstance;
-        window.isAdminAuthenticated = false;
-        const ADMIN_PASS = "1234";
-
-        setInterval(() => { 
-            const now = new Date(); 
-            const clockEl = document.getElementById('liveClock');
-            if(clockEl) clockEl.innerHTML = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + ' | ' + now.toLocaleTimeString(); 
-        }, 1000);
-
-        function loginAdmin() {
-            const pass = prompt("Enter Staff Password:");
-            if (pass === ADMIN_PASS) {
-                window.isAdminAuthenticated = true;
-                const card = document.getElementById('main-card');
-                card.classList.replace('max-w-xl', 'max-w-6xl'); 
-                document.getElementById('attendance-view').classList.add('hidden');
-                document.getElementById('admin-panel').classList.remove('hidden');
-                if(!chartInstance) initChart();
-                updateDashboard();
-                updateUserTable();
-            } else if (pass !== null) { alert("Access Denied!"); }
-        }
-
-        function logoutAdmin() { 
-            window.isAdminAuthenticated = false; 
-            const card = document.getElementById('main-card');
-            card.classList.replace('max-w-6xl', 'max-w-xl'); 
-            document.getElementById('admin-panel').classList.add('hidden'); 
-            document.getElementById('attendance-view').classList.remove('hidden'); 
-        }
-
-        function filterUsers() {
-            const filter = document.getElementById('userSearchInput').value.toLowerCase();
-            const rows = document.getElementById('user-manage-list').getElementsByTagName('tr');
-            for (let i = 0; i < rows.length; i++) {
-                const text = rows[i].textContent || rows[i].innerText;
-                rows[i].style.display = text.toLowerCase().includes(filter) ? "" : "none";
-            }
+        function showFeedback(user, time) {
+            console.log("Logged:", user.name, "at", time);
         }
 
         function updateDashboard() {
-            if(!window.logsData) return;
-
-            const fReason = document.getElementById('filterReason').value;
-            const fCollege = document.getElementById('filterCollege').value;
-            const fType = document.getElementById('filterUserType').value;
-
-            let filtered = window.logsData.filter(log => {
-                const matchReason = !fReason || log.reason === fReason;
-                const matchCollege = !fCollege || (log.college && log.college.toUpperCase() === fCollege.toUpperCase());
-                const matchType = !fType || (fType === 'employee' ? log.isEmployee : !log.isEmployee);
-                return matchReason && matchCollege && matchType;
-            });
-
-            document.getElementById('filteredCount').innerText = filtered.length;
-
-            const reversedLogs = [...filtered].reverse().slice(0, 50);
-            document.getElementById('recent-logs-list').innerHTML = reversedLogs.map(l => `
-                <tr class="border-b border-slate-50 hover:bg-white/50 transition-colors">
-                    <td class="py-4 px-2 text-xs"><b>${l.name}</b><br><span class="opacity-50 text-[9px] uppercase font-bold tracking-tighter">${l.reason} | ${l.college || 'NA'}</span></td>
-                    <td class="py-4 px-2 text-right text-neu-green font-black text-sm">${l.timestamp}</td>
-                </tr>
-            `).join('');
+            const list = document.getElementById('recent-logs-list');
+            const logs = window.logsData || [];
+            document.getElementById('filteredCount').innerText = logs.length;
+            document.getElementById('staffCount').innerText = logs.filter(l => l.isEmployee).length;
             
-            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const counts = days.map(d => filtered.filter(l => l.day === d).length);
-            if(chartInstance) { chartInstance.data.datasets[0].data = counts; chartInstance.update(); }
-        }
-
-        function updateUserTable() {
-            const list = document.getElementById('user-manage-list');
-            const studentsArr = Object.entries(window.studentsData || {});
-            list.innerHTML = studentsArr.map(([id, u]) => `
-                <tr class="hover:bg-slate-50 transition-all">
-                    <td class="p-6 flex items-center gap-4">
-                        <img src="${u.photo}" class="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md">
-                        <div>
-                            <b class="text-slate-800 text-base">${u.name}</b>
-                            <br><span class="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md uppercase tracking-tighter">${id} | ${u.role} | ${u.course}</span>
-                        </div>
-                    </td>
-                    <td class="p-6 text-center space-x-4">
-                        <button onclick="openEditModal('${id}')" class="text-neu-green font-black text-[10px] uppercase hover:underline">Edit</button>
-                        <button onclick="deleteStudent('${id}')" class="text-neu-red font-black text-[10px] uppercase hover:underline">Delete</button>
-                    </td>
+            list.innerHTML = [...logs].reverse().slice(0, 10).map(l => `
+                <tr class="hover:bg-slate-50">
+                    <td class="p-3"><b>${l.name}</b><br><span class="text-[10px] text-slate-400 uppercase">${l.college}</span></td>
+                    <td class="p-3 text-right font-black text-neu-green">${l.timestamp}</td>
                 </tr>
             `).join('');
-        }
-
-        function openEditModal(id) {
-            const u = window.studentsData[id];
-            document.getElementById('edit-id').value = id;
-            document.getElementById('edit-name').value = u.name;
-            document.getElementById('edit-college').value = u.course || 'ICS';
-            document.getElementById('edit-year').value = u.year;
-            document.getElementById('edit-modal').classList.remove('hidden');
-        }
-
-        function showFeedback(user, time) {
-            const box = document.getElementById('log-feedback');
-            document.getElementById('fb-name').innerText = user.name;
-            document.getElementById('fb-role').innerText = `${user.role} | ${user.course}`;
-            document.getElementById('fb-time').innerText = "✅ RECORDED: " + time;
-            document.getElementById('fb-pic').src = user.photo;
-            box.classList.remove('hidden'); 
-            setTimeout(() => { box.classList.add('hidden'); }, 4000);
-        }
-
-        function initChart() {
-            const ctx = document.getElementById('trafficChart').getContext('2d');
-            chartInstance = new Chart(ctx, { 
-                type: 'bar', 
-                data: { 
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], 
-                    datasets: [{ label: 'Visitors', data: [0,0,0,0,0,0], backgroundColor: '#008000', borderRadius: 12, hoverBackgroundColor: '#006400' }] 
-                }, 
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } }, 
-                    scales: { 
-                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, 
-                        x: { grid: { display: false } } 
-                    } 
-                } 
-            });
         }
     </script>
 </body>
