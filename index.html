@@ -13,16 +13,16 @@
         import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-     const firebaseConfig = {
-  apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
-  authDomain: "student-library-system-3e72c.firebaseapp.com",
-  databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
-  projectId: "student-library-system-3e72c",
-  storageBucket: "student-library-system-3e72c.firebasestorage.app",
-  messagingSenderId: "80114803910",
-  appId: "1:80114803910:web:9dd831301ce90972d2a3c7",
-  measurementId: "G-H8YCT6MRYV"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnrYNwknI",
+            authDomain: "student-library-system-3e72c.firebaseapp.com",
+            projectId: "student-library-system-3e72c",
+            storageBucket: "student-library-system-3e72c.firebasestorage.app",
+            messagingSenderId: "88114883918",
+            appId: "1:88114883918:web:9dd831381ce90972d2a3c7",
+            measurementId: "G-H8YCT6NRYV",
+            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com/"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
