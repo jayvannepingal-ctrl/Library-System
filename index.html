@@ -26,24 +26,20 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- GLOBAL VARIABLES ---
         window.studentsData = {};
         window.logsData = [];
 
-        // Real-time Sync for Students
         onValue(ref(db, 'students'), (snapshot) => {
             window.studentsData = snapshot.val() || {};
             if (window.isAdminAuthenticated) updateUserTable();
         });
 
-        // Real-time Sync for Logs
         onValue(ref(db, 'logs'), (snapshot) => {
             const val = snapshot.val();
             window.logsData = val ? Object.values(val) : [];
             if (window.isAdminAuthenticated) updateDashboard();
         });
 
-        // --- FIREBASE FUNCTIONS ---
         window.handleLog = () => {
             const idInput = document.getElementById('studentID');
             const id = idInput.value.trim();
@@ -76,7 +72,6 @@
         window.saveNewUser = () => {
             const id = document.getElementById('reg-id').value;
             const fileInput = document.getElementById('reg-file');
-            
             const processSave = (imgData) => {
                 const newUser = {
                     name: document.getElementById('reg-name').value,
@@ -92,21 +87,14 @@
                     window.handleLog();
                 });
             };
-
             if(fileInput.files[0]) {
                 const reader = new FileReader();
                 reader.onload = (e) => processSave(e.target.result);
                 reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                processSave();
-            }
+            } else { processSave(); }
         };
 
-        window.deleteStudent = (id) => {
-            if (confirm(`Remove student ${id}?`)) {
-                remove(ref(db, 'students/' + id));
-            }
-        };
+        window.deleteStudent = (id) => { if (confirm(`Remove student ${id}?`)) remove(ref(db, 'students/' + id)); };
 
         window.updateUserAccount = () => {
             const id = document.getElementById('edit-id').value;
@@ -132,7 +120,7 @@
     </script>
 
     <style>
-        :root { --neu-green: #008000; --neu-red: #CC0000; --neu-white: #FFFFFF; }
+        :root { --neu-green: #008000; --neu-red: #CC0000; }
         .bg-neu-green { background-color: var(--neu-green); }
         .text-neu-green { color: var(--neu-green); }
         .bg-neu-red { background-color: var(--neu-red); }
@@ -142,130 +130,114 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans">
+<body class="bg-slate-50 min-h-screen font-sans flex flex-col">
 
     <nav class="bg-neu-green text-white p-4 shadow-xl flex justify-between items-center sticky top-0 z-40 border-b-4 border-neu-red">
         <div class="flex items-center gap-3">
-            <img src="download.png" class="h-10 w-10 bg-white rounded-full p-1 shadow-md">
+            <img src="download.png" class="h-10 w-10 bg-white rounded-full p-1">
             <div>
-                <h1 class="font-black text-sm md:text-lg tracking-tight leading-none uppercase">New Era University</h1>
-                <p class="text-[10px] uppercase tracking-[0.2em] opacity-90 font-bold italic">Library System | Cloud</p>
+                <h1 class="font-black text-sm md:text-lg uppercase">New Era University</h1>
+                <p class="text-[10px] uppercase font-bold italic opacity-90">Library System | Cloud</p>
             </div>
         </div>
-        <div id="liveClock" class="font-mono text-xs text-right hidden sm:block opacity-90"></div>
+        <div id="liveClock" class="font-mono text-xs hidden sm:block"></div>
     </nav>
 
-    <main class="container mx-auto p-4 lg:p-10">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main class="container mx-auto p-6 flex flex-col items-center justify-center flex-grow">
+        
+        <div class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-10 text-center relative overflow-hidden">
             
-            <div class="lg:col-span-4">
-                <div class="bg-white rounded-3xl shadow-2xl border-t-8 border-neu-green p-8">
-                    <div class="text-center mb-6">
-                        <h2 class="text-2xl font-black text-neu-green uppercase italic tracking-tighter">Type ID</h2>
-                    </div>
-                    <div class="space-y-4">
-                        <input type="text" id="studentID" autofocus placeholder="Ex: 24-12782-483" 
-                            class="w-full p-4 border-2 border-slate-200 rounded-2xl focus:border-green-600 outline-none text-center text-2xl font-mono uppercase shadow-inner">
-                        <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 text-lg">
-                            TIME IN
-                        </button>
-                    </div>
+            <div id="attendance-view" class="space-y-6">
+                <h2 class="text-3xl font-black text-neu-green uppercase italic tracking-tighter">Enter Student ID</h2>
+                
+                <div class="space-y-4">
+                    <input type="text" id="studentID" autofocus placeholder="00-00000-000" 
+                        class="w-full p-5 border-2 border-slate-200 rounded-3xl focus:border-green-600 outline-none text-center text-3xl font-mono uppercase shadow-inner">
+                    <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-5 rounded-3xl shadow-lg transition-all active:scale-95 text-xl">
+                        TIME IN
+                    </button>
+                </div>
 
-                    <div id="log-feedback" class="hidden mt-8 p-5 rounded-3xl bg-green-50 border-2 border-green-100 text-center animate-pop shadow-inner">
-                        <img id="fb-pic" src="" class="w-28 h-28 rounded-full mx-auto mb-4 border-4 border-white shadow-xl object-cover">
-                        <h3 id="fb-name" class="text-xl font-black text-slate-800 leading-tight"></h3>
-                        <p id="fb-role" class="text-neu-red font-bold text-xs uppercase mt-1"></p>
-                        <div class="mt-4 py-2 px-4 bg-neu-green text-white rounded-xl text-xs font-mono inline-block shadow-md" id="fb-time"></div>
-                    </div>
+                <div class="pt-4">
+                    <button onclick="loginAdmin()" class="text-slate-400 hover:text-neu-green font-bold text-xs uppercase tracking-widest transition">
+                        🔒 Login as Staff
+                    </button>
+                </div>
+
+                <div id="log-feedback" class="hidden mt-6 p-6 rounded-[2rem] bg-green-50 border-2 border-green-100 animate-pop shadow-inner">
+                    <img id="fb-pic" src="" class="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-white shadow-md object-cover">
+                    <h3 id="fb-name" class="text-xl font-black text-slate-800 leading-tight"></h3>
+                    <p id="fb-role" class="text-neu-red font-bold text-[10px] uppercase"></p>
+                    <div class="mt-3 py-2 px-4 bg-neu-green text-white rounded-xl text-xs font-mono inline-block shadow-sm" id="fb-time"></div>
                 </div>
             </div>
 
-            <div class="lg:col-span-8">
-                <div id="admin-lock-screen" class="h-full min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border-4 border-dashed border-green-200 shadow-xl">
-                    <div class="text-center p-10">
-                        <div class="text-6xl mb-4">🔒</div>
-                        <h2 class="text-2xl font-black text-slate-400 uppercase">Admin Dashboard Locked</h2>
-                        <button onclick="loginAdmin()" class="mt-6 bg-neu-green hover:bg-green-800 text-white px-10 py-3 rounded-2xl font-bold shadow-lg transition">LOGIN AS STAFF</button>
+            <div id="admin-panel" class="hidden text-left animate-pop">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-black text-neu-green uppercase italic">Staff Portal</h2>
+                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-4 py-2 rounded-xl font-bold text-[10px] uppercase">Logout</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div class="bg-slate-50 p-4 rounded-2xl border h-40 flex flex-col">
+                        <span class="text-[9px] font-black text-slate-400 uppercase mb-2">Weekly Traffic</span>
+                        <canvas id="trafficChart"></canvas>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-2xl border h-40 flex flex-col overflow-hidden">
+                        <span class="text-[9px] font-black text-slate-400 uppercase mb-2">Recent Logs</span>
+                        <div class="overflow-y-auto custom-scrollbar flex-grow text-[10px]">
+                            <table class="w-full"><tbody id="recent-logs-list"></tbody></table>
+                        </div>
                     </div>
                 </div>
 
-                <div id="admin-panel" class="hidden space-y-6 animate-pop">
-                    <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-100">
-                        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-                            <h2 class="text-3xl font-black text-neu-green tracking-tighter">Library Statistics</h2>
-                            <div class="flex gap-2">
-                                <button onclick="exportData()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-bold text-sm uppercase">📊 Export</button>
-                                <button onclick="logoutAdmin()" class="bg-neu-red hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold text-sm uppercase">🔒 Logout</button>
-                            </div>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200">
-                                <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Weekly Entries</h3>
-                                <div class="h-48"><canvas id="trafficChart"></canvas></div>
-                            </div>
-                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 h-80 flex flex-col">
-                                <h3 class="text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Recent Entries (Cloud)</h3>
-                                <div class="overflow-y-auto custom-scrollbar flex-grow">
-                                    <table class="w-full text-left text-xs border-separate border-spacing-y-2">
-                                        <tbody id="recent-logs-list"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-8 rounded-3xl shadow-xl border-t-4 border-neu-red">
-                        <h2 class="text-2xl font-black text-neu-green tracking-tighter mb-4">Manage Cloud Users</h2>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm">
-                                <thead class="bg-green-50 text-green-700 uppercase text-[10px] font-black">
-                                    <tr><th class="p-3">Profile</th><th class="p-3">ID Number</th><th class="p-3">Details</th><th class="p-3 text-center">Actions</th></tr>
-                                </thead>
-                                <tbody id="user-manage-list"></tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div class="max-h-60 overflow-y-auto border rounded-2xl custom-scrollbar">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-100 sticky top-0">
+                            <tr><th class="p-2 text-left">User</th><th class="p-2 text-center">Action</th></tr>
+                        </thead>
+                        <tbody id="user-manage-list"></tbody>
+                    </table>
                 </div>
+                <button onclick="exportData()" class="w-full mt-4 bg-green-600 text-white py-3 rounded-2xl font-bold text-xs uppercase shadow-md">Export Report (Excel)</button>
             </div>
         </div>
+
     </main>
 
     <div id="reg-modal" class="hidden fixed inset-0 bg-green-900/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl border-t-8 border-neu-red">
-            <h2 class="text-3xl font-black text-neu-green mb-1 uppercase">Sign Up</h2>
-            <div class="space-y-4 mt-4">
-                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-black text-green-700">
-                <input type="text" id="reg-name" placeholder="Full Name (Last, First)" class="w-full p-4 border-2 rounded-xl font-semibold">
-                <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-role" class="p-4 border-2 rounded-xl font-semibold"><option value="Student">Student</option><option value="Faculty">Faculty</option></select>
-                    <select id="reg-sex" class="p-4 border-2 rounded-xl font-semibold"><option>Male</option><option>Female</option></select>
+        <div class="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border-t-8 border-neu-red">
+            <h2 class="text-2xl font-black text-neu-green mb-4 uppercase">New Registration</h2>
+            <div class="space-y-3">
+                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-50 rounded-xl font-bold text-green-700">
+                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-3 border rounded-xl font-semibold">
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="reg-role" class="p-3 border rounded-xl font-semibold"><option>Student</option><option>Faculty</option></select>
+                    <select id="reg-sex" class="p-3 border rounded-xl font-semibold"><option>Male</option><option>Female</option></select>
                 </div>
-                <input type="text" id="reg-course" placeholder="Course" class="w-full p-4 border-2 rounded-xl font-semibold">
-                <input type="text" id="reg-year" placeholder="Year" class="w-full p-4 border-2 rounded-xl font-semibold">
-                <input type="text" id="reg-religion" placeholder="Religion" class="w-full p-4 border-2 rounded-xl font-semibold">
-                <input type="file" id="reg-file" accept="image/*" class="w-full text-xs p-2 border border-dashed rounded-lg">
-                <div class="flex gap-3 pt-4">
-                    <button onclick="saveNewUser()" class="flex-1 bg-neu-green text-white py-4 rounded-2xl font-black">REGISTER</button>
-                    <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-4 rounded-2xl font-black">CANCEL</button>
+                <input type="text" id="reg-course" placeholder="Course" class="w-full p-3 border rounded-xl font-semibold">
+                <input type="text" id="reg-year" placeholder="Year" class="w-full p-3 border rounded-xl font-semibold">
+                <input type="text" id="reg-religion" placeholder="Religion" class="w-full p-3 border rounded-xl font-semibold">
+                <input type="file" id="reg-file" accept="image/*" class="w-full text-[10px]">
+                <div class="flex gap-2 pt-2">
+                    <button onclick="saveNewUser()" class="flex-1 bg-neu-green text-white py-3 rounded-xl font-black">SAVE</button>
+                    <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-black">CANCEL</button>
                 </div>
             </div>
         </div>
     </div>
 
     <div id="edit-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border-t-8 border-neu-red">
-            <h2 class="text-2xl font-black text-neu-green mb-6 uppercase">Edit Profile</h2>
+        <div class="bg-white rounded-[2rem] p-8 max-w-sm w-full">
+            <h2 class="text-xl font-black text-neu-green mb-4 uppercase">Edit User</h2>
             <div class="space-y-3">
-                <input type="text" id="edit-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-green-700">
+                <input type="text" id="edit-id" readonly class="w-full p-3 bg-slate-50 rounded-xl font-bold">
                 <input type="text" id="edit-name" class="w-full p-3 border rounded-xl font-bold">
-                <select id="edit-role" class="w-full p-3 border rounded-xl font-bold"><option value="Student">Student</option><option value="Faculty">Faculty Staff</option></select>
                 <input type="text" id="edit-course" placeholder="Course" class="w-full p-3 border rounded-xl font-bold">
                 <input type="text" id="edit-year" placeholder="Year" class="w-full p-3 border rounded-xl font-bold">
-                <input type="text" id="edit-religion" placeholder="Religion" class="w-full p-3 border rounded-xl font-bold">
                 <div class="flex gap-2 pt-4">
-                    <button onclick="updateUserAccount()" class="flex-1 bg-neu-green text-white py-4 rounded-xl font-black">SAVE</button>
-                    <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 text-slate-500 py-4 rounded-xl font-black">CANCEL</button>
+                    <button onclick="updateUserAccount()" class="flex-1 bg-neu-green text-white py-3 rounded-xl font-black">SAVE</button>
+                    <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-black">BACK</button>
                 </div>
             </div>
         </div>
@@ -285,60 +257,47 @@
             const pass = prompt("Enter Staff Password:");
             if (pass === ADMIN_PASS) {
                 window.isAdminAuthenticated = true;
+                document.getElementById('attendance-view').classList.add('hidden');
                 document.getElementById('admin-panel').classList.remove('hidden');
-                document.getElementById('admin-lock-screen').classList.add('hidden');
                 if(!chartInstance) initChart();
                 updateDashboard();
                 updateUserTable();
-            } else if (pass !== null) { alert("Incorrect password!"); }
+            } else if (pass !== null) { alert("Access Denied!"); }
         }
 
         function logoutAdmin() { 
             window.isAdminAuthenticated = false; 
+            document.getElementById('attendance-view').classList.remove('hidden'); 
             document.getElementById('admin-panel').classList.add('hidden'); 
-            document.getElementById('admin-lock-screen').classList.remove('hidden'); 
         }
 
         function updateDashboard() {
             if(!window.logsData) return;
-            const logs = [...window.logsData].reverse().slice(0, 50);
+            const logs = [...window.logsData].reverse().slice(0, 20);
             document.getElementById('recent-logs-list').innerHTML = logs.map(l => `
-                <tr class="bg-white shadow-sm rounded-lg overflow-hidden border-b border-slate-100">
-                    <td class="p-3">
-                        <div class="font-black text-slate-700">${l.name}</div>
-                        <div class="text-[9px] text-slate-400 uppercase">${l.course || 'N/A'}</div>
-                    </td>
-                    <td class="p-3 text-right">
-                        <div class="text-neu-green font-bold text-[11px]">${l.timestamp}</div>
-                        <div class="text-[9px] text-slate-400 font-mono">${l.date}</div>
-                    </td>
+                <tr class="border-b border-slate-100">
+                    <td class="py-1"><b>${l.name}</b><br><span class="opacity-50 text-[8px]">${l.course}</span></td>
+                    <td class="py-1 text-right text-neu-green font-bold">${l.timestamp}</td>
                 </tr>
             `).join('');
             
             const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const counts = days.map(d => window.logsData.filter(l => l.day === d).length);
-            if(chartInstance) { 
-                chartInstance.data.datasets[0].data = counts; 
-                chartInstance.update(); 
-            }
+            if(chartInstance) { chartInstance.data.datasets[0].data = counts; chartInstance.update(); }
         }
 
         function updateUserTable() {
             const list = document.getElementById('user-manage-list');
             const studentsArr = Object.entries(window.studentsData || {});
             list.innerHTML = studentsArr.map(([id, u]) => `
-                <tr class="border-b border-slate-50 hover:bg-green-50 transition">
-                    <td class="p-3"><img src="${u.photo}" class="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm"></td>
-                    <td class="p-3 font-mono font-black text-green-700">${id}</td>
-                    <td class="p-3">
-                        <div class="font-bold text-slate-700">${u.name}</div>
-                        <div class="text-[10px] text-slate-400 uppercase">${u.course} | Year ${u.year}</div>
+                <tr class="border-b hover:bg-slate-50">
+                    <td class="p-2 flex items-center gap-2">
+                        <img src="${u.photo}" class="w-6 h-6 rounded-full object-cover">
+                        <div><b>${u.name}</b><br><span class="text-[9px] font-mono">${id}</span></div>
                     </td>
-                    <td class="p-3 text-center">
-                        <div class="flex gap-2 justify-center">
-                            <button onclick="openEditModal('${id}')" class="bg-green-100 text-green-700 px-3 py-1 rounded-lg font-black text-[10px] hover:bg-green-200">EDIT</button>
-                            <button onclick="deleteStudent('${id}')" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg font-black text-[10px] hover:bg-red-200">REMOVE</button>
-                        </div>
+                    <td class="p-2 text-center">
+                        <button onclick="openEditModal('${id}')" class="text-green-600 font-bold mr-2">Edit</button>
+                        <button onclick="deleteStudent('${id}')" class="text-red-500 font-bold">Del</button>
                     </td>
                 </tr>
             `).join('');
@@ -348,10 +307,8 @@
             const u = window.studentsData[id];
             document.getElementById('edit-id').value = id;
             document.getElementById('edit-name').value = u.name;
-            document.getElementById('edit-role').value = u.role;
             document.getElementById('edit-course').value = u.course;
             document.getElementById('edit-year').value = u.year;
-            document.getElementById('edit-religion').value = u.religion;
             document.getElementById('edit-modal').classList.remove('hidden');
         }
 
@@ -362,7 +319,7 @@
             document.getElementById('fb-time').innerText = "✅ TIME IN: " + time;
             document.getElementById('fb-pic').src = user.photo;
             box.classList.remove('hidden'); 
-            setTimeout(() => { box.classList.add('hidden'); }, 4000);
+            setTimeout(() => { box.classList.add('hidden'); }, 3500);
         }
 
         function initChart() {
@@ -371,13 +328,9 @@
                 type: 'bar', 
                 data: { 
                     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], 
-                    datasets: [{ label: 'Visitors', data: [0,0,0,0,0,0], backgroundColor: '#008000', borderRadius: 10 }] 
+                    datasets: [{ label: 'Entries', data: [0,0,0,0,0,0], backgroundColor: '#008000', borderRadius: 5 }] 
                 }, 
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } }, 
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
-                } 
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } } 
             });
         }
     </script>
