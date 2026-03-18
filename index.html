@@ -13,15 +13,16 @@
         import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // UPDATED CONFIG WITH VALID API KEY
+        // CONFIG GALANG SA SCREENSHOT MO (image_79ff43.jpg)
         const firebaseConfig = {
             apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnrYNwknI",
             authDomain: "student-library-system-3e72c.firebaseapp.com",
+            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com/",
             projectId: "student-library-system-3e72c",
             storageBucket: "student-library-system-3e72c.firebasestorage.app",
             messagingSenderId: "88114883918",
             appId: "1:88114883918:web:9dd831381ce90972d2a3c7",
-            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com/"
+            measurementId: "G-H8YCT6NRYV"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -30,10 +31,11 @@
         const provider = new GoogleAuthProvider();
 
         const ADMINS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
-
+        window.isAdminAuthenticated = false;
         window.studentsData = {};
         window.logsData = [];
 
+        // Sync Data
         onValue(ref(db, 'students'), (snap) => {
             window.studentsData = snap.val() || {};
             if (window.isAdminAuthenticated) updateUserTable();
@@ -45,6 +47,7 @@
             if (window.isAdminAuthenticated) updateDashboard();
         });
 
+        // Login Logic
         window.loginAdmin = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
@@ -64,7 +67,7 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                alert("Login Error: Pakisigurado na naka-set ang Support Email sa Firebase Console settings.");
+                alert("Login Error: Pakisigurado na naka-set ang Support Email sa Firebase Console.");
             }
         };
 
@@ -75,7 +78,7 @@
             const id = idInput.value.trim();
             
             if(!validateID(id)) {
-                alert("Invalid ID Format! Follow: 00-00000-000");
+                alert("Invalid ID Format! Gamitin ang: 00-00000-000");
                 return;
             }
 
@@ -95,7 +98,7 @@
             };
 
             push(ref(db, 'logs'), logEntry);
-            alert("Welcome to NEU Library! Time-in successful.");
+            alert("Welcome to NEU Library! Time-in Recorded.");
             idInput.value = "";
             idInput.focus();
         };
@@ -125,6 +128,28 @@
         }
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
+
+        // Admin Helpers
+        window.updateDashboard = () => {
+            const list = document.getElementById('recent-logs-list');
+            list.innerHTML = [...window.logsData].reverse().slice(0, 20).map(l => `
+                <tr class="border-b">
+                    <td class="py-3 px-2"><b>${l.name}</b><br><span class="text-[10px] uppercase text-slate-400">${l.college}</span></td>
+                    <td class="py-3 px-2 text-xs font-bold">${l.reason}</td>
+                    <td class="py-3 px-2 text-right font-black text-[#008000]">${l.timestamp}</td>
+                </tr>
+            `).join('');
+        };
+
+        window.updateUserTable = () => {
+            const list = document.getElementById('user-manage-list');
+            list.innerHTML = Object.entries(window.studentsData).map(([id, u]) => `
+                <tr class="border-b">
+                    <td class="py-3 px-2 text-xs"><b>${u.name}</b><br><span class="opacity-50">${id}</span></td>
+                    <td class="py-3 px-2 text-[10px] uppercase font-bold text-slate-400">${u.course}</td>
+                </tr>
+            `).join('');
+        };
     </script>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans flex flex-col">
@@ -149,13 +174,12 @@
                 </div>
                 
                 <div class="space-y-4 text-left">
-                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Purpose of Visit</label>
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2 italic">Purpose of Visit</label>
                     <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold text-sm focus:border-[#008000] outline-none">
                         <option>Study / Reading</option>
                         <option>Research</option>
                         <option>Borrow / Return Books</option>
-                        <option>Computer and Internet</option>
-                        <option>Clearance</option>
+                        <option>Computer and Internet</option> <option>Clearance</option>
                     </select>
 
                     <input type="text" id="studentID" placeholder="24-12782-493" 
@@ -175,21 +199,21 @@
 
             <div id="admin-panel" class="hidden text-left space-y-8">
                 <div class="flex justify-between items-center border-b-2 pb-6">
-                    <h2 class="text-4xl font-black text-[#008000] uppercase italic tracking-tighter">Admin Dashboard</h2>
+                    <h2 class="text-4xl font-black text-[#008000] uppercase italic tracking-tighter">Dashboard</h2>
                     <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase shadow-lg">Logout</button>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-slate-50 p-8 rounded-[2.5rem] shadow-inner h-64 overflow-y-auto">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Live Logs</span>
-                        <table class="w-full text-xs mt-4">
-                            <tbody id="recent-logs-list" class="divide-y"></tbody>
+                    <div class="bg-slate-50 p-8 rounded-[2.5rem] shadow-inner h-96 overflow-y-auto">
+                        <span class="text-xs font-black text-[#008000] uppercase tracking-widest">Recent Activity</span>
+                        <table class="w-full mt-4">
+                            <tbody id="recent-logs-list" class="divide-y divide-slate-200"></tbody>
                         </table>
                     </div>
-                    <div class="bg-white p-8 rounded-[2.5rem] border shadow-sm h-64 overflow-y-auto">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Visitor Profiles</span>
-                        <table class="w-full text-xs mt-4">
-                            <tbody id="user-manage-list" class="divide-y"></tbody>
+                    <div class="bg-white p-8 rounded-[2.5rem] border shadow-sm h-96 overflow-y-auto">
+                        <span class="text-xs font-black text-[#008000] uppercase tracking-widest">Visitor Masterlist</span>
+                        <table class="w-full mt-4">
+                            <tbody id="user-manage-list" class="divide-y divide-slate-200"></tbody>
                         </table>
                     </div>
                 </div>
@@ -202,9 +226,9 @@
             <h2 class="text-3xl font-black text-[#008000] mb-6 uppercase italic">New Visitor</h2>
             
             <div id="google-btn-container" class="text-center space-y-4">
-                <p class="text-slate-500 font-bold text-sm">Please sign in with Google to create your profile.</p>
+                <p class="text-slate-500 font-bold text-sm">Verify your identity with Google to continue.</p>
                 <button onclick="loginAdmin()" class="w-full flex items-center justify-center gap-3 bg-white border-2 p-4 rounded-2xl font-black hover:bg-slate-50 transition shadow-sm">
-                    <img src="https://www.google.com/favicon.ico" class="w-6"> Login with Google
+                    <img src="https://www.google.com/favicon.ico" class="w-6"> Sign in with Google
                 </button>
             </div>
 
@@ -243,26 +267,5 @@
             <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full mt-4 text-slate-400 font-bold text-xs uppercase">Cancel</button>
         </div>
     </div>
-
-    <script>
-        function updateDashboard() {
-            const list = document.getElementById('recent-logs-list');
-            list.innerHTML = [...window.logsData].reverse().slice(0, 20).map(l => `
-                <tr class="border-b">
-                    <td class="py-3"><b>${l.name}</b><br><span class="text-[9px] uppercase opacity-50">${l.college}</span></td>
-                    <td class="py-3 text-right font-black text-[#008000]">${l.timestamp}</td>
-                </tr>
-            `).join('');
-        }
-
-        function updateUserTable() {
-            const list = document.getElementById('user-manage-list');
-            list.innerHTML = Object.entries(window.studentsData).map(([id, u]) => `
-                <tr class="border-b">
-                    <td class="py-3"><b>${u.name}</b><br><span class="text-[9px] opacity-50">${id}</span></td>
-                </tr>
-            `).join('');
-        }
-    </script>
 </body>
 </html>
