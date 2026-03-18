@@ -13,6 +13,7 @@
         import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // UPDATED CONFIG WITH VALID API KEY
         const firebaseConfig = {
             apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnrYNwknI",
             authDomain: "student-library-system-3e72c.firebaseapp.com",
@@ -28,7 +29,6 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // DALAWANG ADMIN ACCOUNTS
         const ADMINS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
 
         window.studentsData = {};
@@ -45,7 +45,6 @@
             if (window.isAdminAuthenticated) updateDashboard();
         });
 
-        // SECURE LOGIN & ROLE SWITCHING
         window.loginAdmin = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
@@ -56,7 +55,6 @@
                     alert("Welcome back Admin, " + user.displayName + "!");
                     enterAdminMode();
                 } else {
-                    // REGULAR USER - Para sa Visitor Sign-up
                     if (!document.getElementById('reg-modal').classList.contains('hidden')) {
                         document.getElementById('google-btn-container').classList.add('hidden');
                         document.getElementById('registration-form').classList.remove('hidden');
@@ -66,11 +64,10 @@
                 }
             } catch (error) {
                 console.error("Auth Error:", error);
-                alert("Login Error: Siguraduhin na naka-set ang Support Email sa Firebase Console.");
+                alert("Login Error: Pakisigurado na naka-set ang Support Email sa Firebase Console settings.");
             }
         };
 
-        // ID FORMAT VALIDATION (**-*****-***)
         const validateID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
         window.handleLog = () => {
@@ -78,7 +75,7 @@
             const id = idInput.value.trim();
             
             if(!validateID(id)) {
-                alert("Invalid ID Format! Follow: 00-00000-000"); //
+                alert("Invalid ID Format! Follow: 00-00000-000");
                 return;
             }
 
@@ -98,7 +95,7 @@
             };
 
             push(ref(db, 'logs'), logEntry);
-            alert("Welcome to NEU Library!"); //
+            alert("Welcome to NEU Library! Time-in successful.");
             idInput.value = "";
             idInput.focus();
         };
@@ -152,10 +149,12 @@
                 </div>
                 
                 <div class="space-y-4 text-left">
+                    <label class="text-[10px] font-black uppercase text-slate-400 ml-2">Purpose of Visit</label>
                     <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold text-sm focus:border-[#008000] outline-none">
                         <option>Study / Reading</option>
                         <option>Research</option>
                         <option>Borrow / Return Books</option>
+                        <option>Computer and Internet</option>
                         <option>Clearance</option>
                     </select>
 
@@ -218,15 +217,24 @@
                 </div>
                 
                 <select id="reg-college" class="w-full p-4 border-2 rounded-2xl font-bold text-sm outline-none">
-                    <option value="Informatics and Computing Studies">College of Informatics and Computing Studies</option>
+                    <option value="" disabled selected>Select College</option>
                     <option value="Accountancy">College of Accountancy</option>
                     <option value="Agriculture">College of Agriculture</option>
                     <option value="Arts and Science">College of Arts and Science</option>
                     <option value="Business Administration">College of Business Administration</option>
+                    <option value="Communication">College of Communication</option>
+                    <option value="Informatics and Computing Studies">College of Informatics and Computing Studies</option>
+                    <option value="Criminology">College of Criminology</option>
                     <option value="Education">College of Education</option>
                     <option value="Engineering and Architecture">College of Engineering and Architecture</option>
+                    <option value="Medical Technology">College of Medical Technology</option>
+                    <option value="Midwifery">College of Midwifery</option>
+                    <option value="Music">College of Music</option>
                     <option value="Nursing">College of Nursing</option>
+                    <option value="Physical Therapy">College of Physical Therapy</option>
+                    <option value="Respiratory Therapy">College of Respiratory Therapy</option>
                     <option value="Law">College of Law</option>
+                    <option value="Medicine">College of Medicine</option>
                 </select>
 
                 <input type="text" id="reg-year" placeholder="Year Level (e.g. 1st Year)" class="w-full p-4 border-2 rounded-2xl font-bold">
