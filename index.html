@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEU Library System | Staff Edition</title>
+    <title>NEU Library System | Admin Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -28,34 +28,49 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        window.studentsData = {};
-        window.logsData = [];
+        // DALAWANG ADMIN ACCOUNTS
         const ADMINS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
 
-        // Auth Listener for Admin and User
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                if (ADMINS.includes(user.email)) {
-                    enterAdminMode();
-                } else {
-                    // If regular user just logged in for registration
-                    document.getElementById('google-btn-container').classList.add('hidden');
-                    document.getElementById('registration-form').classList.remove('hidden');
-                }
-            }
+        window.studentsData = {};
+        window.logsData = [];
+
+        onValue(ref(db, 'students'), (snap) => {
+            window.studentsData = snap.val() || {};
+            if (window.isAdminAuthenticated) updateUserTable();
         });
 
-        onValue(ref(db, 'students'), (snap) => window.studentsData = snap.val() || {});
         onValue(ref(db, 'logs'), (snap) => {
             const val = snap.val();
             window.logsData = val ? Object.values(val) : [];
             if (window.isAdminAuthenticated) updateDashboard();
         });
 
-        // 1. Google Login for Admin
-        window.loginAdmin = () => signInWithPopup(auth, provider);
+        // SECURE LOGIN & ROLE SWITCHING
+        window.loginAdmin = async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const user = result.user;
 
-        // 2. ID Format Validation (Regex: 00-00000-000)
+                if (ADMINS.includes(user.email)) {
+                    window.isAdminAuthenticated = true;
+                    alert("Welcome back Admin, " + user.displayName + "!");
+                    enterAdminMode();
+                } else {
+                    // REGULAR USER - Para sa Visitor Sign-up
+                    if (!document.getElementById('reg-modal').classList.contains('hidden')) {
+                        document.getElementById('google-btn-container').classList.add('hidden');
+                        document.getElementById('registration-form').classList.remove('hidden');
+                    } else {
+                        alert("Welcome to NEU Library!");
+                    }
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                alert("Login Error: Siguraduhin na naka-set ang Support Email sa Firebase Console.");
+            }
+        };
+
+        // ID FORMAT VALIDATION (**-*****-***)
         const validateID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
         window.handleLog = () => {
@@ -63,7 +78,7 @@
             const id = idInput.value.trim();
             
             if(!validateID(id)) {
-                alert("Invalid ID Format! Please follow: 00-00000-000");
+                alert("Invalid ID Format! Follow: 00-00000-000"); //
                 return;
             }
 
@@ -78,16 +93,14 @@
             const logEntry = {
                 id, name: user.name, role: user.role, college: user.course,
                 reason: document.getElementById('visitReason').value,
-                isEmployee: user.role !== 'Student',
                 timestamp: now.toLocaleTimeString(),
-                date: now.toISOString().split('T')[0],
-                day: now.toLocaleDateString('en-US', { weekday: 'short' })
+                date: now.toLocaleDateString()
             };
 
             push(ref(db, 'logs'), logEntry);
-            showFeedback(user, logEntry.timestamp);
+            alert("Welcome to NEU Library!"); //
             idInput.value = "";
-            alert("Welcome to NEU Library!");
+            idInput.focus();
         };
 
         window.saveNewUser = () => {
@@ -107,121 +120,138 @@
         };
 
         function enterAdminMode() {
-            window.isAdminAuthenticated = true;
             document.getElementById('attendance-view').classList.add('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
             document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
             updateDashboard();
+            updateUserTable();
         }
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
     </script>
-    <style>
-        :root { --neu-green: #008000; --neu-red: #CC0000; }
-        .bg-neu-green { background-color: var(--neu-green); }
-        .text-neu-green { color: var(--neu-green); }
-        .bg-neu-red { background-color: var(--neu-red); }
-        #main-card { transition: all 0.4s ease; }
-    </style>
 </head>
-<body class="bg-slate-100 min-h-screen font-sans">
+<body class="bg-slate-100 min-h-screen font-sans flex flex-col">
 
-    <nav class="bg-neu-green text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-4 border-neu-red">
-        <div class="flex items-center gap-4">
-            <img src="download.png" class="h-12 w-12 bg-white rounded-full p-1" onerror="this.src='https://via.placeholder.com/50'">
-            <h1 class="font-black text-xl uppercase tracking-tighter">NEU Library System</h1>
+    <nav class="bg-[#008000] text-white py-6 px-8 shadow-2xl flex justify-between items-center border-b-8 border-[#CC0000]">
+        <div class="flex items-center gap-6">
+            <img src="download.png" class="h-20 w-20 bg-white rounded-full p-2 shadow-xl" onerror="this.src='https://via.placeholder.com/80'">
+            <div>
+                <h1 class="font-black text-2xl md:text-3xl uppercase tracking-tighter">New Era University</h1>
+                <p class="text-xs font-bold uppercase tracking-[0.3em] mt-1">Library Management System</p>
+            </div>
         </div>
     </nav>
 
-    <main class="container mx-auto p-6 flex flex-col items-center justify-center">
-        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl p-10 text-center border-t-8 border-neu-green">
+    <main class="container mx-auto p-6 flex flex-col items-center justify-center flex-grow">
+        <div id="main-card" class="w-full max-w-xl bg-white rounded-[4rem] shadow-2xl border-t-8 border-[#008000] p-10 md:p-14 text-center transition-all duration-500">
             
             <div id="attendance-view" class="space-y-6">
-                <h2 class="text-4xl font-black text-neu-green italic uppercase">Time In</h2>
+                <div class="space-y-2">
+                    <h2 class="text-5xl font-black text-[#008000] uppercase italic tracking-tighter">Time In</h2>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Welcome to NEU Library!</p>
+                </div>
+                
                 <div class="space-y-4 text-left">
-                    <select id="visitReason" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold">
+                    <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold text-sm focus:border-[#008000] outline-none">
                         <option>Study / Reading</option>
                         <option>Research</option>
                         <option>Borrow / Return Books</option>
+                        <option>Clearance</option>
                     </select>
-                    <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-6 border-2 rounded-3xl text-center text-3xl font-mono uppercase bg-slate-50 focus:border-neu-green outline-none shadow-inner">
-                    <button onclick="handleLog()" class="w-full bg-neu-green text-white font-black py-5 rounded-3xl text-xl shadow-lg active:scale-95 transition">Confirm Attendance</button>
+
+                    <input type="text" id="studentID" placeholder="24-12782-493" 
+                        class="w-full p-6 border-2 border-slate-100 rounded-[2rem] focus:border-green-600 outline-none text-center text-3xl font-mono uppercase shadow-inner bg-slate-50">
+                    
+                    <button onclick="handleLog()" class="w-full bg-[#008000] hover:bg-green-800 text-white font-black py-6 rounded-[2rem] shadow-lg transition-all active:scale-95 text-2xl uppercase italic">
+                        Confirm Attendance
+                    </button>
                 </div>
-                <button onclick="loginAdmin()" class="text-slate-400 text-xs font-bold hover:text-neu-green">🔒 STAFF LOGIN PORTAL</button>
+
+                <div class="pt-6 border-t border-slate-50">
+                    <button onclick="loginAdmin()" class="text-slate-300 hover:text-[#008000] font-bold text-xs uppercase tracking-[0.2em]">
+                        🔒 ADMIN LOG IN
+                    </button>
+                </div>
             </div>
 
-            <div id="admin-panel" class="hidden text-left space-y-6 w-full">
-                <div class="flex justify-between items-center">
-                    <h2 class="text-3xl font-black text-neu-green italic">STAFF DASHBOARD</h2>
-                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-6 py-2 rounded-xl font-bold text-xs shadow-md">LOGOUT</button>
+            <div id="admin-panel" class="hidden text-left space-y-8">
+                <div class="flex justify-between items-center border-b-2 pb-6">
+                    <h2 class="text-4xl font-black text-[#008000] uppercase italic tracking-tighter">Admin Dashboard</h2>
+                    <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-8 py-3 rounded-2xl font-black text-xs uppercase shadow-lg">Logout</button>
                 </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-green-50 p-6 rounded-3xl border border-green-100">
-                        <p class="text-[10px] font-black text-green-600 uppercase">Total Visitors</p>
-                        <p id="filteredCount" class="text-4xl font-black text-neu-green">0</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-slate-50 p-8 rounded-[2.5rem] shadow-inner h-64 overflow-y-auto">
+                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Live Logs</span>
+                        <table class="w-full text-xs mt-4">
+                            <tbody id="recent-logs-list" class="divide-y"></tbody>
+                        </table>
                     </div>
-                    <div class="bg-blue-50 p-6 rounded-3xl border border-blue-100 text-blue-700">
-                        <p class="text-[10px] font-black uppercase">Staff/Faculty Today</p>
-                        <p id="staffCount" class="text-4xl font-black">0</p>
+                    <div class="bg-white p-8 rounded-[2.5rem] border shadow-sm h-64 overflow-y-auto">
+                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Visitor Profiles</span>
+                        <table class="w-full text-xs mt-4">
+                            <tbody id="user-manage-list" class="divide-y"></tbody>
+                        </table>
                     </div>
-                    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200">
-                        <p class="text-[10px] font-black text-slate-500 uppercase">Active College</p>
-                        <p id="topCollege" class="text-2xl font-black text-slate-800">CICS</p>
-                    </div>
-                </div>
-
-                <div class="bg-white border rounded-3xl p-6 shadow-inner max-h-80 overflow-y-auto">
-                    <table class="w-full text-sm">
-                        <tbody id="recent-logs-list" class="divide-y"></tbody>
-                    </table>
                 </div>
             </div>
         </div>
     </main>
 
-    <div id="reg-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[3rem] p-8 max-w-md w-full shadow-2xl border-t-8 border-neu-red">
-            <h3 class="text-2xl font-black text-neu-green mb-4">CREATE PROFILE</h3>
+    <div id="reg-modal" class="hidden fixed inset-0 bg-[#008000]/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl border-t-8 border-[#CC0000]">
+            <h2 class="text-3xl font-black text-[#008000] mb-6 uppercase italic">New Visitor</h2>
             
-            <div id="google-btn-container" class="space-y-4">
-                <p class="text-slate-500 text-sm">Please sign-in with your Google Account to continue registration.</p>
-                <button onclick="loginAdmin()" class="w-full flex items-center justify-center gap-3 bg-white border-2 p-3 rounded-2xl font-bold hover:bg-slate-50">
-                    <img src="https://www.google.com/favicon.ico" class="w-5"> Login with Google
+            <div id="google-btn-container" class="text-center space-y-4">
+                <p class="text-slate-500 font-bold text-sm">Please sign in with Google to create your profile.</p>
+                <button onclick="loginAdmin()" class="w-full flex items-center justify-center gap-3 bg-white border-2 p-4 rounded-2xl font-black hover:bg-slate-50 transition shadow-sm">
+                    <img src="https://www.google.com/favicon.ico" class="w-6"> Login with Google
                 </button>
             </div>
 
-            <div id="registration-form" class="hidden space-y-3">
-                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-center text-neu-green">
-                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-3 border rounded-xl outline-none focus:border-neu-green">
-                <div class="grid grid-cols-2 gap-2">
-                    <select id="reg-role" class="p-3 border rounded-xl"><option>Student</option><option>Staff</option><option>Faculty</option></select>
-                    <select id="reg-sex" class="p-3 border rounded-xl"><option>Male</option><option>Female</option></select>
+            <div id="registration-form" class="hidden space-y-4">
+                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-bold text-[#008000] text-center">
+                <input type="text" id="reg-name" placeholder="Full Name" class="w-full p-4 border-2 rounded-2xl font-bold outline-none">
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="reg-role" class="p-4 border-2 rounded-2xl font-bold text-sm"><option>Student</option><option>Faculty</option><option>Staff</option></select>
+                    <select id="reg-sex" class="p-4 border-2 rounded-2xl font-bold text-sm"><option>Male</option><option>Female</option></select>
                 </div>
-                <select id="reg-college" class="w-full p-3 border rounded-xl">
-                    <option value="CICS">CICS</option><option value="COE">COE</option><option value="CAS">CAS</option><option value="CBA">CBA</option>
+                
+                <select id="reg-college" class="w-full p-4 border-2 rounded-2xl font-bold text-sm outline-none">
+                    <option value="Informatics and Computing Studies">College of Informatics and Computing Studies</option>
+                    <option value="Accountancy">College of Accountancy</option>
+                    <option value="Agriculture">College of Agriculture</option>
+                    <option value="Arts and Science">College of Arts and Science</option>
+                    <option value="Business Administration">College of Business Administration</option>
+                    <option value="Education">College of Education</option>
+                    <option value="Engineering and Architecture">College of Engineering and Architecture</option>
+                    <option value="Nursing">College of Nursing</option>
+                    <option value="Law">College of Law</option>
                 </select>
-                <input type="text" id="reg-year" placeholder="Year Level" class="w-full p-3 border rounded-xl">
-                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black shadow-lg">REGISTER & TIME IN</button>
+
+                <input type="text" id="reg-year" placeholder="Year Level (e.g. 1st Year)" class="w-full p-4 border-2 rounded-2xl font-bold">
+                <button onclick="saveNewUser()" class="w-full bg-[#008000] text-white py-5 rounded-2xl font-black uppercase shadow-lg">Save & Time In</button>
             </div>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full mt-4 text-slate-400 font-bold text-xs uppercase">Cancel</button>
         </div>
     </div>
 
     <script>
-        function showFeedback(user, time) {
-            console.log("Logged:", user.name, "at", time);
-        }
-
         function updateDashboard() {
             const list = document.getElementById('recent-logs-list');
-            const logs = window.logsData || [];
-            document.getElementById('filteredCount').innerText = logs.length;
-            document.getElementById('staffCount').innerText = logs.filter(l => l.isEmployee).length;
-            
-            list.innerHTML = [...logs].reverse().slice(0, 10).map(l => `
-                <tr class="hover:bg-slate-50">
-                    <td class="p-3"><b>${l.name}</b><br><span class="text-[10px] text-slate-400 uppercase">${l.college}</span></td>
-                    <td class="p-3 text-right font-black text-neu-green">${l.timestamp}</td>
+            list.innerHTML = [...window.logsData].reverse().slice(0, 20).map(l => `
+                <tr class="border-b">
+                    <td class="py-3"><b>${l.name}</b><br><span class="text-[9px] uppercase opacity-50">${l.college}</span></td>
+                    <td class="py-3 text-right font-black text-[#008000]">${l.timestamp}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateUserTable() {
+            const list = document.getElementById('user-manage-list');
+            list.innerHTML = Object.entries(window.studentsData).map(([id, u]) => `
+                <tr class="border-b">
+                    <td class="py-3"><b>${u.name}</b><br><span class="text-[9px] opacity-50">${id}</span></td>
                 </tr>
             `).join('');
         }
