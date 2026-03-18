@@ -36,11 +36,14 @@
             if (window.isAdminAuthenticated) updateUserTable();
         });
 
-        // Real-time Sync for Logs
+       // Siguraduhin na tinatawag nito ang updateDashboard()
         onValue(ref(db, 'logs'), (snapshot) => {
             const val = snapshot.val();
-            logsData = val ? Object.values(val) : [];
-            if (window.isAdminAuthenticated) updateDashboard();
+            // Convert object to array and reverse para pinakabago ang nasa taas
+            logsData = val ? Object.values(val).reverse() : []; 
+            if (window.isAdminAuthenticated) {
+                updateDashboard();
+            }
         });
 
         // --- EXPOSE FUNCTIONS TO WINDOW ---
