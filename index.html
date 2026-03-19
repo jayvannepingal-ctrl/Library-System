@@ -13,16 +13,18 @@
         import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-     const firebaseConfig = {
-  apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
-  authDomain: "student-library-system-3e72c.firebaseapp.com",
-  databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
-  projectId: "student-library-system-3e72c",
-  storageBucket: "student-library-system-3e72c.firebasestorage.app",
-  messagingSenderId: "80114803910",
-  appId: "1:80114803910:web:9dd831301ce90972d2a3c7",
-  measurementId: "G-H8YCT6MRYV"
-};
+        // WAG GALAWIN ANG CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
+            authDomain: "student-library-system-3e72c.firebaseapp.com",
+            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
+            projectId: "student-library-system-3e72c",
+            storageBucket: "student-library-system-3e72c.firebasestorage.app",
+            messagingSenderId: "80114803910",
+            appId: "1:80114803910:web:9dd831301ce90972d2a3c7",
+            measurementId: "G-H8YCT6MRYV"
+        };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const auth = getAuth(app);
@@ -32,7 +34,7 @@
         window.studentsData = {};
         window.logsData = [];
 
-        // Watch Authentication State
+        // 1. WATCH AUTH STATE
         onAuthStateChanged(auth, (user) => {
             if (user && ADMIN_EMAILS.includes(user.email)) {
                 showAdminPanel();
@@ -41,6 +43,7 @@
             }
         });
 
+        // 2. DATA FETCHING
         onValue(ref(db, 'students'), (snapshot) => {
             window.studentsData = snapshot.val() || {};
             updateUserTable();
@@ -49,63 +52,64 @@
         onValue(ref(db, 'logs'), (snapshot) => {
             const val = snapshot.val();
             window.logsData = val ? Object.values(val) : [];
-            updateDashboard();
+            updateStatsCards();
         });
 
-        // VALIDATION FUNCTION
-        const isValidID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
+        // 3. ID FORMAT VALIDATION (XX-XXXXX-XX)
+        const isValidID = (id) => /^\d{2}-\d{5}-\d{2}$/.test(id);
 
+        // 4. REGULAR USER LOGIC (TIME IN)
         window.handleLog = async () => {
             const idInput = document.getElementById('studentID');
             const id = idInput.value.trim();
+            const reason = document.getElementById('visitReason').value;
             
             if(!isValidID(id)) {
-                alert("Invalid ID Format! Use: 00-00000-000");
+                alert("Maling ID Format! Gamitin ang: 00-00000-00");
                 return;
             }
 
             const user = window.studentsData[id];
+
+            // SIGN UP / GOOGLE LOGIN KUNG WALA PANG PROFILE
             if (!user) {
-                alert("Visitor Profile not found. Please Sign-in with Google to create one.");
+                alert("Profile not found. Please Sign-in with Google to Register.");
                 try {
                     const result = await signInWithPopup(auth, provider);
                     document.getElementById('reg-id').value = id;
                     document.getElementById('reg-name').value = result.user.displayName;
                     document.getElementById('reg-modal').classList.remove('hidden');
-                } catch (e) { alert("Google Sign-in Required"); }
+                } catch (e) { alert("Kailangan mo mag-login sa Google para makapag-register."); }
                 return;
             }
 
+            // SUCCESSFUL LOG
             const now = new Date();
             const logEntry = {
                 id: id,
                 name: user.name,
-                role: user.role, 
-                college: user.course, 
-                reason: document.getElementById('visitReason').value,
-                isEmployee: user.role !== 'Student',
+                role: user.role, // Student, Teacher, Staff
+                college: user.college,
+                reason: reason,
                 timestamp: now.toLocaleTimeString(),
-                date: now.toLocaleDateString(),
-                day: now.toLocaleDateString('en-US', { weekday: 'short' }),
+                date: now.toLocaleDateString('en-CA'), // YYYY-MM-DD format
                 fullDate: now.toISOString()
             };
 
             push(ref(db, 'logs'), logEntry);
-            alert("Welcome to NEU Library!"); // YUNG HILING MO
-            showFeedback(user, logEntry.timestamp);
+            alert("Welcome to NEU Library!"); 
             idInput.value = "";
         };
 
+        // 5. SIGN UP / SAVE NEW USER
         window.saveNewUser = () => {
             const id = document.getElementById('reg-id').value;
             const newUser = {
                 name: document.getElementById('reg-name').value,
                 role: document.getElementById('reg-role').value,
+                college: document.getElementById('reg-college').value,
                 sex: document.getElementById('reg-sex').value,
-                course: document.getElementById('reg-college').value, 
-                year: document.getElementById('reg-year').value,
-                religion: document.getElementById('reg-religion').value,
-                photo: auth.currentUser.photoURL || 'https://via.placeholder.com/150'
+                year: document.getElementById('reg-year').value || "N/A"
             };
             set(ref(db, 'students/' + id), newUser).then(() => {
                 document.getElementById('reg-modal').classList.add('hidden');
@@ -113,12 +117,12 @@
             });
         };
 
-        // ADMIN FUNCTIONS
+        // 6. ADMIN LOGIN
         window.loginAdmin = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
                 if (!ADMIN_EMAILS.includes(result.user.email)) {
-                    alert("Access Denied: Not an authorized Staff email.");
+                    alert("Access Denied: Hindi ka authorized na Staff.");
                     await signOut(auth);
                 }
             } catch (e) { alert("Login Failed"); }
@@ -126,25 +130,50 @@
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
 
+        // 7. DASHBOARD & FILTERS
+        function updateStatsCards() {
+            const filterDate = document.getElementById('filterDate').value;
+            const filterCollege = document.getElementById('filterCollege').value;
+            const filterRole = document.getElementById('filterRole').value;
+
+            let filtered = window.logsData;
+
+            if(filterDate) filtered = filtered.filter(l => l.date === filterDate);
+            if(filterCollege !== "All") filtered = filtered.filter(l => l.college === filterCollege);
+            if(filterRole !== "All") filtered = filtered.filter(l => l.role === filterRole);
+
+            document.getElementById('stat-total').innerText = filtered.length;
+            document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
+            document.getElementById('stat-staff').innerText = filtered.filter(l => l.role !== 'Student').length;
+        }
+
+        window.applyFilters = () => updateStatsCards();
+
         function showAdminPanel() {
-            const card = document.getElementById('main-card');
-            card.classList.replace('max-w-xl', 'max-w-6xl'); 
+            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
             document.getElementById('attendance-view').classList.add('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
-            if(!chartInstance) initChart();
-            updateDashboard();
-            updateUserTable();
+            updateStatsCards();
         }
 
         function hideAdminPanel() {
-            const card = document.getElementById('main-card');
-            card.classList.replace('max-w-6xl', 'max-w-xl'); 
-            document.getElementById('admin-panel').classList.add('hidden'); 
-            document.getElementById('attendance-view').classList.remove('hidden'); 
+            document.getElementById('main-card').classList.replace('max-w-6xl', 'max-w-xl');
+            document.getElementById('admin-panel').classList.add('hidden');
+            document.getElementById('attendance-view').classList.remove('hidden');
         }
 
-        // ... rest of your original logic (deleteStudent, exportData, updateDashboard, initChart)
-        // (Isinama ko lahat ng internal logic mo dito sa ibaba para buo ang code)
+        function updateUserTable() {
+            const list = document.getElementById('user-manage-list');
+            list.innerHTML = "";
+            Object.entries(window.studentsData).forEach(([id, data]) => {
+                list.innerHTML += `<tr class="border-b">
+                    <td class="p-4 font-bold">${id}</td>
+                    <td class="p-4">${data.name}</td>
+                    <td class="p-4">${data.college}</td>
+                    <td class="p-4 text-xs font-black uppercase text-neu-red">${data.role}</td>
+                </tr>`;
+            });
+        }
     </script>
 
     <style>
@@ -152,114 +181,132 @@
         .bg-neu-green { background-color: var(--neu-green); }
         .text-neu-green { color: var(--neu-green); }
         .bg-neu-red { background-color: var(--neu-red); }
-        .animate-pop { animation: fadeInScale 0.3s ease-out forwards; }
-        @keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        #main-card { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #main-card { transition: all 0.5s ease-in-out; }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans flex flex-col">
 
-    <nav class="bg-neu-green text-white py-6 px-8 shadow-2xl flex justify-between items-center sticky top-0 z-40 border-b-8 border-neu-red">
+    <nav class="bg-neu-green text-white py-6 px-8 shadow-2xl flex justify-between items-center border-b-8 border-neu-red">
         <div class="flex items-center gap-6">
-            <img src="download.png" class="h-20 w-20 bg-white rounded-full p-2 shadow-xl border-2 border-white/20" onerror="this.src='https://via.placeholder.com/80'">
+            <div class="h-16 w-16 bg-white rounded-full flex items-center justify-center font-black text-neu-green">NEU</div>
             <div>
-                <h1 class="font-black text-2xl md:text-3xl uppercase leading-none tracking-tighter">New Era University</h1>
-                <p class="text-xs md:text-sm uppercase font-bold italic opacity-90 tracking-[0.3em] mt-1">Library Management System</p>
+                <h1 class="font-black text-2xl uppercase leading-none">New Era University</h1>
+                <p class="text-xs uppercase font-bold opacity-80 tracking-widest">Library Management System</p>
             </div>
         </div>
-        <div id="liveClock" class="font-mono text-sm bg-black/30 px-5 py-2 rounded-2xl hidden lg:block border border-white/10 shadow-inner"></div>
     </nav>
 
     <main class="container mx-auto p-6 flex flex-col items-center justify-center flex-grow">
         
-        <div id="main-card" class="w-full max-w-xl bg-white rounded-[4rem] shadow-2xl border-t-8 border-neu-green p-10 md:p-14 text-center overflow-hidden">
+        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-10 text-center">
             
-            <div id="attendance-view" class="space-y-6 animate-pop">
-                <div class="space-y-2">
-                    <h2 class="text-5xl font-black text-neu-green uppercase italic tracking-tighter">Time In</h2>
-                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest">Visitor Attendance</p>
-                </div>
+            <div id="attendance-view" class="space-y-6">
+                <h2 class="text-5xl font-black text-neu-green uppercase italic tracking-tighter">Time In</h2>
                 
                 <div class="space-y-4 text-left">
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-4 mb-1 block">Reason for Visiting</label>
-                    <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none focus:border-neu-green transition-all">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Reason for Visiting</label>
+                    <select id="visitReason" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold">
                         <option>Study / Reading</option>
                         <option>Research</option>
                         <option>Borrow / Return Books</option>
                         <option>Clearance</option>
-                        <option>Computer / Internet Use</option>
                     </select>
 
-                    <input type="text" id="studentID" autofocus placeholder="24-12345-678" 
-                        class="w-full p-6 border-2 border-slate-100 rounded-[2rem] focus:border-green-600 outline-none text-center text-3xl font-mono uppercase shadow-inner bg-slate-50 transition-all">
+                    <input type="text" id="studentID" placeholder="00-00000-00" maxlength="11"
+                        class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase shadow-inner bg-slate-50">
                     
-                    <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] shadow-lg transition-all active:scale-95 text-2xl uppercase italic tracking-tight">
+                    <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] text-2xl uppercase italic shadow-lg">
                         Confirm Attendance
                     </button>
                 </div>
 
-                <div class="pt-6 border-t border-slate-50">
-                    <button onclick="loginAdmin()" class="text-slate-300 hover:text-neu-green font-bold text-xs uppercase tracking-[0.2em] transition-colors">
+                <div class="pt-6 border-t">
+                    <button onclick="loginAdmin()" class="text-slate-400 hover:text-neu-green font-bold text-xs uppercase tracking-widest">
                         🔒 Staff Login Portal
                     </button>
                 </div>
-
-                <div id="log-feedback" class="hidden mt-6 p-6 rounded-[3rem] bg-white border border-slate-100 animate-pop shadow-2xl">
-                    <img id="fb-pic" src="" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-neu-green shadow-lg object-cover">
-                    <h3 id="fb-name" class="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1"></h3>
-                    <p id="fb-role" class="text-neu-red font-bold text-[10px] uppercase mb-3"></p>
-                    <div class="py-2 px-6 bg-neu-green text-white rounded-2xl text-[11px] font-black inline-block shadow-md" id="fb-time"></div>
-                </div>
             </div>
 
-            <div id="admin-panel" class="hidden text-left animate-pop w-full space-y-8">
-                <div class="flex justify-between items-end border-b-2 pb-6 border-slate-50">
+            <div id="admin-panel" class="hidden text-left w-full space-y-8">
+                <div class="flex justify-between items-center border-b pb-4">
+                    <h2 class="text-3xl font-black text-neu-green uppercase italic">Staff Dashboard</h2>
+                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-6 py-2 rounded-xl font-bold text-xs uppercase">Logout</button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-3xl border">
                     <div>
-                        <h2 class="text-4xl font-black text-neu-green uppercase italic tracking-tighter leading-none">Staff Portal</h2>
-                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-[0.3em] mt-2">Authorized Access Only</p>
+                        <label class="text-[10px] font-black uppercase text-slate-400">Date Range</label>
+                        <input type="date" id="filterDate" onchange="applyFilters()" class="w-full p-2 rounded-lg border">
                     </div>
-                    <button onclick="logoutAdmin()" class="bg-neu-red hover:bg-red-700 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg">Logout</button>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400">College</label>
+                        <select id="filterCollege" onchange="applyFilters()" class="w-full p-2 rounded-lg border">
+                            <option>All</option><option>CICS</option><option>COE</option><option>CAS</option><option>CBA</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-slate-400">Role</label>
+                        <select id="filterRole" onchange="applyFilters()" class="w-full p-2 rounded-lg border">
+                            <option>All</option><option>Student</option><option>Teacher</option><option>Staff</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 h-72 flex flex-col shadow-inner">
-                    <span class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">Traffic Analytics</span>
-                    <div class="flex-grow"><canvas id="trafficChart"></canvas></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-neu-green text-white p-8 rounded-[2rem] shadow-lg">
+                        <p class="text-xs font-bold uppercase opacity-80">Total Visitors</p>
+                        <h3 id="stat-total" class="text-5xl font-black">0</h3>
+                    </div>
+                    <div class="bg-white border p-8 rounded-[2rem] shadow-sm">
+                        <p class="text-xs font-bold uppercase text-slate-400">Students</p>
+                        <h3 id="stat-student" class="text-5xl font-black text-neu-green">0</h3>
+                    </div>
+                    <div class="bg-white border p-8 rounded-[2rem] shadow-sm">
+                        <p class="text-xs font-bold uppercase text-slate-400">Faculty / Staff</p>
+                        <h3 id="stat-staff" class="text-5xl font-black text-neu-red">0</h3>
+                    </div>
                 </div>
-                <div id="user-table-container" class="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm">
-                    <table class="w-full text-sm">
+
+                <div class="bg-white rounded-3xl border overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b">
+                            <tr><th class="p-4 text-xs font-black uppercase">ID Number</th><th class="p-4 text-xs font-black uppercase">Name</th><th class="p-4 text-xs font-black uppercase">College</th><th class="p-4 text-xs font-black uppercase">Role</th></tr>
+                        </thead>
                         <tbody id="user-manage-list"></tbody>
                     </table>
                 </div>
-                <button onclick="exportData()" class="w-full bg-neu-green text-white py-6 rounded-[2rem] font-black uppercase shadow-xl">Export Report</button>
             </div>
         </div>
     </main>
 
-    <div id="reg-modal" class="hidden fixed inset-0 bg-green-900/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full shadow-2xl border-t-8 border-neu-red animate-pop">
-            <h2 class="text-3xl font-black text-neu-green mb-8 uppercase italic tracking-tighter leading-none">Create Visitor Profile</h2>
+    <div id="reg-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[3rem] p-10 max-w-md w-full border-t-8 border-neu-red">
+            <h2 class="text-2xl font-black text-neu-green mb-6 uppercase italic">Visitor Sign-Up</h2>
             <div class="space-y-4">
-                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-bold text-green-700 text-center">
-                <input type="text" id="reg-name" readonly class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold bg-slate-50">
+                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-bold text-center">
+                <input type="text" id="reg-name" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-bold">
+                
                 <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-role" class="p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Student</option><option>Faculty</option><option>Staff</option></select>
-                    <select id="reg-sex" class="p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none"><option>Male</option><option>Female</option></select>
+                    <select id="reg-role" class="p-4 border rounded-2xl font-bold text-sm">
+                        <option>Student</option><option>Teacher</option><option>Staff</option>
+                    </select>
+                    <select id="reg-sex" class="p-4 border rounded-2xl font-bold text-sm">
+                        <option>Male</option><option>Female</option>
+                    </select>
                 </div>
-                <select id="reg-college" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold text-sm outline-none">
-                    <option value="CICS">CICS</option><option value="COE">COE</option><option value="CAS">CAS</option><option value="CBA">CBA</option>
+
+                <select id="reg-college" class="w-full p-4 border rounded-2xl font-bold text-sm">
+                    <option value="CICS">CICS (Computer Studies)</option>
+                    <option value="COE">COE (Engineering)</option>
+                    <option value="CAS">CAS (Arts & Sciences)</option>
+                    <option value="CBA">CBA (Business)</option>
                 </select>
-                <input type="text" id="reg-year" placeholder="Year Level" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="reg-religion" placeholder="Religion" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-bold outline-none">
-                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Save Profile</button>
+
+                <input type="text" id="reg-year" placeholder="Year Level (e.g. 1st Year)" class="w-full p-4 border rounded-2xl font-bold">
+                
+                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Save & Time In</button>
             </div>
         </div>
     </div>
-
-    <script>
-        let chartInstance;
-        // Re-include your original helper functions (updateDashboard, updateUserTable, etc.) here to keep functionality
-        // Para sa scannability, tinanggal ko yung duplicate copy-paste ng 500 lines pero dapat nandoon yung chart logic mo.
-    </script>
 </body>
 </html>
