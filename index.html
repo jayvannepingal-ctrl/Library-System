@@ -5,15 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEU Library System | Admin Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // WAG GALAWIN ANG CONFIG - Naka-set sa dati mong config
+        // WAG GALAWIN ANG CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
             authDomain: "student-library-system-3e72c.firebaseapp.com",
@@ -29,16 +27,15 @@
         const db = getDatabase(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' }); // Forcing Google Account Selection
+        provider.setCustomParameters({ prompt: 'select_account' });
 
         const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
         window.studentsData = {};
         window.logsData = [];
 
         onAuthStateChanged(auth, (user) => {
-            const adminInfo = document.getElementById('admin-info');
             if (user && ADMIN_EMAILS.includes(user.email)) {
-                adminInfo.innerText = `Logged in as: ${user.email}`;
+                document.getElementById('admin-display-name').innerText = "Admin: " + user.email;
                 showAdminPanel();
             } else {
                 hideAdminPanel();
@@ -56,14 +53,14 @@
             updateStatsCards();
         });
 
-        // ID FORMAT: 00-00000-000
+        // 00-00000-000 Format
         const isValidID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
         window.handleLog = async () => {
             const idInput = document.getElementById('studentID');
             const id = idInput.value.trim();
             const reason = document.getElementById('visitReason').value;
-            const container = document.getElementById('log-container');
+            const container = document.getElementById('attendance-view');
             const welcomeMsg = document.getElementById('welcome-msg');
             
             if(!isValidID(id)) {
@@ -74,30 +71,28 @@
             const user = window.studentsData[id];
 
             if (!user) {
-                // Custom Modal logic based on your request
+                // MODAL FOR NEW USER
                 if(confirm("Profile not found. Please Sign-in with Google to Register.")) {
                     try {
                         const result = await signInWithPopup(auth, provider);
                         const googleEmail = result.user.email;
-
-                        // Check if Google Account already exists
                         const exists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
+                        
                         if(exists) {
                             alert("Account is already exist");
                             await signOut(auth);
                             return;
                         }
-
                         document.getElementById('reg-id').value = id;
                         document.getElementById('reg-google-email').value = googleEmail;
                         document.getElementById('reg-modal').classList.remove('hidden');
-                    } catch (e) { alert("Registration Cancelled"); }
+                    } catch (e) { alert("Google Sign-in failed."); }
                 }
                 return;
             }
 
             if(user.isBlocked) {
-                alert("This account is BLOCKED. Please contact the administrator.");
+                alert("This account is BLOCKED.");
                 return;
             }
 
@@ -114,36 +109,39 @@
                 fullDate: now.toLocaleString()
             };
 
-            push(ref(db, 'logs'), logEntry);
+            await push(ref(db, 'logs'), logEntry);
             
-            // Welcome UI Logic
-            container.classList.add('hidden');
+            // Welcome Screen logic
+            document.getElementById('log-form-container').classList.add('hidden');
             welcomeMsg.classList.remove('hidden');
             idInput.value = "";
 
             setTimeout(() => {
                 welcomeMsg.classList.add('hidden');
-                container.classList.remove('hidden');
+                document.getElementById('log-form-container').classList.remove('hidden');
             }, 3000);
         };
 
         window.saveNewUser = () => {
             const id = document.getElementById('reg-id').value;
+            const fullName = document.getElementById('reg-full-name').value;
+            if(!fullName) { alert("Please type your full name."); return; }
+
             const file = document.getElementById('reg-photo').files[0];
             const reader = new FileReader();
 
-            const saveData = (photoUrl = "https://via.placeholder.com/150") => {
+            const saveData = (photoUrl = "") => {
                 const newUser = {
-                    name: document.getElementById('reg-full-name').value,
+                    name: fullName,
                     role: document.getElementById('reg-role').value,
                     college: document.getElementById('reg-college').value,
                     year: document.getElementById('reg-year').value,
                     googleEmail: document.getElementById('reg-google-email').value,
-                    photo: photoUrl,
+                    photo: photoUrl || "https://ui-avatars.com/api/?name="+fullName,
                     isBlocked: false
                 };
                 set(ref(db, 'students/' + id), newUser).then(() => {
-                    alert("Profile Created! Please Time In now.");
+                    alert("Registration Successful! You can now Time In.");
                     document.getElementById('reg-modal').classList.add('hidden');
                 });
             };
@@ -156,51 +154,43 @@
             }
         };
 
-        // ADMIN FUNCTIONS
         window.toggleBlock = (id, status) => {
             update(ref(db, 'students/' + id), { isBlocked: !status });
         };
 
         window.editUser = (id) => {
             const user = window.studentsData[id];
-            const newYear = prompt("Enter new Year Level (1st-4th):", user.year);
-            const newCollege = prompt("Enter new College Code (e.g., CICS):", user.college);
-            if(newYear && newCollege) {
-                update(ref(db, 'students/' + id), { year: newYear, college: newCollege });
-            }
+            const nYear = prompt("Edit Year (1st-4th):", user.year);
+            const nColl = prompt("Edit College:", user.college);
+            if(nYear && nColl) update(ref(db, 'students/' + id), { year: nYear, college: nColl });
         };
 
         window.loginAdmin = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
                 if (!ADMIN_EMAILS.includes(result.user.email)) {
-                    alert("Access Denied.");
+                    alert("Unauthorized Access.");
                     await signOut(auth);
                 }
-            } catch (e) { alert("Login Failed"); }
+            } catch (e) { alert("Admin Login Failed"); }
         };
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
 
         function updateStatsCards() {
-            const filterDate = document.getElementById('filterDate').value;
-            let filtered = window.logsData;
-            if(filterDate) filtered = filtered.filter(l => l.date === filterDate);
-
-            document.getElementById('stat-total').innerText = filtered.length;
-            document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
-            document.getElementById('stat-staff').innerText = filtered.filter(l => l.role !== 'Student').length;
+            document.getElementById('stat-total').innerText = window.logsData.length;
+            document.getElementById('stat-student').innerText = window.logsData.filter(l => l.role === 'Student').length;
+            document.getElementById('stat-staff').innerText = window.logsData.filter(l => l.role !== 'Student').length;
         }
 
         function showAdminPanel() {
-            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-7xl');
+            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
             document.getElementById('attendance-view').classList.add('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
-            updateStatsCards();
         }
 
         function hideAdminPanel() {
-            document.getElementById('main-card').classList.replace('max-w-7xl', 'max-w-xl');
+            document.getElementById('main-card').classList.replace('max-w-6xl', 'max-w-xl');
             document.getElementById('admin-panel').classList.add('hidden');
             document.getElementById('attendance-view').classList.remove('hidden');
         }
@@ -209,17 +199,13 @@
             const list = document.getElementById('user-manage-list');
             list.innerHTML = "";
             Object.entries(window.studentsData).forEach(([id, data]) => {
-                list.innerHTML += `<tr class="border-b text-xs md:text-sm">
-                    <td class="p-3 font-bold">${id}</td>
-                    <td class="p-3 flex items-center gap-2">
-                        <img src="${data.photo}" class="w-8 h-8 rounded-full border">
-                        ${data.name}
-                    </td>
-                    <td class="p-3">${data.college}</td>
-                    <td class="p-3">${data.year}</td>
-                    <td class="p-3 uppercase font-bold">${data.role}</td>
-                    <td class="p-3">
-                        <button onclick="editUser('${id}')" class="text-blue-600 mr-2">Edit</button>
+                list.innerHTML += `<tr class="border-b text-xs">
+                    <td class="p-2 font-bold">${id}</td>
+                    <td class="p-2 flex items-center gap-2"><img src="${data.photo}" class="w-6 h-6 rounded-full border">${data.name}</td>
+                    <td class="p-2">${data.college}</td>
+                    <td class="p-2 uppercase font-bold">${data.role}</td>
+                    <td class="p-2">
+                        <button onclick="editUser('${id}')" class="text-blue-600 mr-2 underline">Edit</button>
                         <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="${data.isBlocked ? 'text-green-600' : 'text-red-600'} font-bold">
                             ${data.isBlocked ? 'Unblock' : 'Block'}
                         </button>
@@ -227,15 +213,14 @@
                 </tr>`;
             });
 
-            // Update Logs Table in Admin
             const logList = document.getElementById('log-history-list');
             logList.innerHTML = "";
             [...window.logsData].reverse().slice(0, 50).forEach(log => {
-                logList.innerHTML += `<tr class="border-b text-[10px] md:text-xs">
+                logList.innerHTML += `<tr class="border-b text-[10px]">
                     <td class="p-2">${log.fullDate}</td>
                     <td class="p-2 font-bold">${log.id}</td>
                     <td class="p-2">${log.name}</td>
-                    <td class="p-2">${log.reason}</td>
+                    <td class="p-2 italic">${log.reason}</td>
                 </tr>`;
             });
         }
@@ -246,59 +231,49 @@
         .bg-neu-green { background-color: var(--neu-green); }
         .text-neu-green { color: var(--neu-green); }
         .bg-neu-red { background-color: var(--neu-red); }
-        #main-card { transition: all 0.4s ease; }
+        #main-card { transition: all 0.5s ease-in-out; }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans flex flex-col">
 
     <nav class="bg-neu-green text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-neu-red">
         <div class="flex items-center gap-4">
-            <img src="download.png" alt="Logo" class="h-16 w-16 bg-white rounded-full p-1 shadow-md">
+            <img src="download.png" onerror="this.src='https://via.placeholder.com/60?text=NEU'" class="h-16 w-16 bg-white rounded-full p-1">
             <div>
                 <h1 class="font-black text-xl uppercase leading-none">New Era University</h1>
                 <p class="text-[10px] uppercase font-bold opacity-80 tracking-widest">Library Management System</p>
             </div>
         </div>
-        <div id="admin-info" class="text-[10px] font-mono opacity-70"></div>
+        <div id="admin-display-name" class="text-xs font-mono opacity-80"></div>
     </nav>
 
     <main class="container mx-auto p-4 flex flex-col items-center justify-center flex-grow">
         
-        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-8 text-center">
+        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-8 text-center relative overflow-hidden">
             
-            <div id="attendance-view">
-                <div id="welcome-msg" class="hidden py-20 animate-bounce">
-                    <h2 class="text-6xl font-black text-neu-green italic">Welcome to Library!</h2>
-                    <p class="text-slate-400 font-bold uppercase tracking-widest mt-4">Logging your visit...</p>
+            <div id="attendance-view" class="w-full">
+                <div id="welcome-msg" class="hidden py-16">
+                    <h2 class="text-5xl font-black text-neu-green italic animate-pulse">Welcome to Library!</h2>
+                    <p class="text-slate-400 font-bold mt-4 uppercase">Success: Logged in to system</p>
                 </div>
 
-                <div id="log-container" class="space-y-6">
-                    <h2 class="text-4xl font-black text-neu-green uppercase italic tracking-tighter">Time In</h2>
+                <div id="log-form-container" class="space-y-6">
+                    <h2 class="text-4xl font-black text-neu-green uppercase italic">Time In</h2>
                     
                     <div class="space-y-4 text-left">
                         <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Reason for Visiting</label>
-                        <select id="visitReason" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold text-sm">
-                            <optgroup label="Reading">
-                                <option>Leisure or assigned reading</option>
-                            </optgroup>
-                            <optgroup label="Research">
-                                <option>Academic research & journals</option>
-                            </optgroup>
-                            <optgroup label="Computer">
-                                <option>IT facilities & internet</option>
-                            </optgroup>
-                            <optgroup label="Assignments">
-                                <option>Study & homework</option>
-                            </optgroup>
-                            <optgroup label="Books">
-                                <option>Borrowing or returning items</option>
-                            </optgroup>
+                        <select id="visitReason" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold">
+                            <optgroup label="Reading"><option>Leisure or assigned reading</option></optgroup>
+                            <optgroup label="Research"><option>Academic research & journals</option></optgroup>
+                            <optgroup label="Computer"><option>IT facilities & internet</option></optgroup>
+                            <optgroup label="Assignments"><option>Study & homework</option></optgroup>
+                            <optgroup label="Books"><option>Borrowing or returning items</option></optgroup>
                         </select>
 
                         <input type="text" id="studentID" placeholder="00-00000-000" maxlength="12"
                             class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase shadow-inner bg-slate-50">
                         
-                        <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] text-2xl uppercase italic shadow-lg transition-transform active:scale-95">
+                        <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] text-2xl uppercase italic shadow-lg">
                             Confirm Attendance
                         </button>
                     </div>
@@ -313,103 +288,51 @@
 
             <div id="admin-panel" class="hidden text-left w-full space-y-6">
                 <div class="flex justify-between items-center border-b pb-4">
-                    <h2 class="text-3xl font-black text-neu-green uppercase italic">Admin Dashboard</h2>
-                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-6 py-2 rounded-xl font-bold text-xs uppercase">Logout</button>
+                    <h2 class="text-3xl font-black text-neu-green uppercase italic">Admin Portal</h2>
+                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-4 py-2 rounded-xl font-bold text-xs">LOGOUT</button>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-neu-green text-white p-6 rounded-3xl shadow-lg">
-                        <p class="text-xs font-bold uppercase opacity-80">Total Visitors</p>
-                        <h3 id="stat-total" class="text-4xl font-black">0</h3>
-                    </div>
-                    <div class="bg-white border-2 border-neu-green p-6 rounded-3xl">
-                        <p class="text-xs font-bold uppercase text-slate-400">Students</p>
-                        <h3 id="stat-student" class="text-4xl font-black text-neu-green">0</h3>
-                    </div>
-                    <div class="bg-white border-2 border-neu-red p-6 rounded-3xl">
-                        <p class="text-xs font-bold uppercase text-slate-400">Faculty / Staff</p>
-                        <h3 id="stat-staff" class="text-4xl font-black text-neu-red">0</h3>
-                    </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-neu-green text-white p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase opacity-80">Total</p><h3 id="stat-total" class="text-3xl font-black">0</h3></div>
+                    <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase text-slate-400">Students</p><h3 id="stat-student" class="text-3xl font-black text-neu-green">0</h3></div>
+                    <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase text-slate-400">Admin</p><h3 id="stat-staff" class="text-3xl font-black text-neu-red">0</h3></div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white rounded-3xl border overflow-hidden shadow-sm">
-                        <div class="p-4 bg-slate-50 border-b font-bold text-xs uppercase">User Management</div>
-                        <div class="overflow-x-auto max-h-96">
-                            <table class="w-full text-left">
-                                <thead class="bg-slate-100 sticky top-0">
-                                    <tr class="text-[10px] uppercase"><th class="p-3">ID</th><th class="p-3">Name</th><th class="p-3">College</th><th class="p-3">Year</th><th class="p-3">Role</th><th class="p-3">Action</th></tr>
-                                </thead>
-                                <tbody id="user-manage-list"></tbody>
-                            </table>
-                        </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-white border rounded-3xl overflow-hidden max-h-80 overflow-y-auto">
+                        <table class="w-full text-left"><thead class="bg-slate-50 sticky top-0 font-bold text-[10px] uppercase"><tr><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Col</th><th class="p-2">Role</th><th class="p-2">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table>
                     </div>
-                    <div class="bg-white rounded-3xl border overflow-hidden shadow-sm">
-                        <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
-                            <span class="font-bold text-xs uppercase">Recent Logs</span>
-                            <input type="date" id="filterDate" onchange="updateStatsCards()" class="text-xs border p-1 rounded">
-                        </div>
-                        <div class="overflow-x-auto max-h-96">
-                            <table class="w-full text-left">
-                                <thead class="bg-slate-100 sticky top-0">
-                                    <tr class="text-[10px] uppercase"><th class="p-2">Date/Time</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Reason</th></tr>
-                                </thead>
-                                <tbody id="log-history-list"></tbody>
-                            </table>
-                        </div>
+                    <div class="bg-white border rounded-3xl overflow-hidden max-h-80 overflow-y-auto">
+                        <table class="w-full text-left"><thead class="bg-slate-50 sticky top-0 font-bold text-[10px] uppercase"><tr><th class="p-2">Date/Time</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Reason</th></tr></thead><tbody id="log-history-list"></tbody></table>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <div id="reg-modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-[3rem] p-8 max-w-lg w-full border-t-8 border-neu-red overflow-y-auto max-h-[90vh]">
-            <h2 class="text-2xl font-black text-neu-green mb-6 uppercase italic">Visitor Sign-Up</h2>
+    <div id="reg-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[3rem] p-8 max-w-md w-full border-t-8 border-neu-red overflow-y-auto max-h-[90vh]">
+            <h2 class="text-2xl font-black text-neu-green mb-4 uppercase italic">Create Profile</h2>
             <div class="space-y-4">
-                <div class="flex flex-col items-center mb-4">
-                    <label class="text-[10px] font-black uppercase mb-2">Profile Picture</label>
-                    <input type="file" id="reg-photo" accept="image/*" class="text-xs">
-                </div>
+                <input type="file" id="reg-photo" accept="image/*" class="text-xs w-full p-2 border border-dashed rounded-xl">
+                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-center">
+                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-xl text-xs">
                 
-                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-center border">
-                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-xl text-xs border">
-                
-                <div class="space-y-1">
-                    <label class="text-[10px] font-bold uppercase ml-2 text-slate-400">Full Name</label>
-                    <input type="text" id="reg-full-name" placeholder="Enter Full Name" class="w-full p-4 border rounded-2xl font-bold shadow-sm">
+                <input type="text" id="reg-full-name" placeholder="Type your Full Name" class="w-full p-4 border-2 border-neu-green/20 rounded-2xl font-bold">
+
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="reg-role" class="p-3 border rounded-xl font-bold text-xs"><option>Student</option><option>Teacher</option><option>Admin</option></select>
+                    <select id="reg-year" class="p-3 border rounded-xl font-bold text-xs"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option></select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-role" class="p-4 border rounded-2xl font-bold text-sm">
-                        <option>Student</option><option>Teacher</option><option>Staff</option>
-                    </select>
-                    <select id="reg-year" class="p-4 border rounded-2xl font-bold text-sm">
-                        <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option>
-                    </select>
-                </div>
-
-                <select id="reg-college" class="w-full p-4 border rounded-2xl font-bold text-sm">
-                    <option>Integrated School (IS)</option>
-                    <option>College of Accountancy (COA)</option>
-                    <option>College of Agriculture (CAG)</option>
-                    <option>College of Arts and Sciences (CAS)</option>
-                    <option>College of Business Administration (CBA)</option>
-                    <option>College of Communication (COC)</option>
-                    <option>College of Informatics and Computing Studies (CICS)</option>
-                    <option>College of Criminology (CCR)</option>
-                    <option>College of Education (CED)</option>
-                    <option>College of Engineering and Architecture (CEA)</option>
-                    <option>College of Medical Technology (CMT)</option>
-                    <option>College of Midwifery (CMW)</option>
-                    <option>College of Music (COM)</option>
-                    <option>College of Nursing (CON)</option>
-                    <option>College of Physical Therapy (CPT)</option>
-                    <option>College of Respiratory Therapy (CRT)</option>
-                    <option>School of International Relations (SOIR)</option>
+                <select id="reg-college" class="w-full p-3 border rounded-xl font-bold text-xs">
+                    <option>Integrated School (IS)</option><option>College of Informatics and Computing Studies (CICS)</option>
+                    <option>College of Accountancy (COA)</option><option>College of Engineering and Architecture (CEA)</option>
+                    <option>College of Arts and Sciences (CAS)</option><option>College of Business Administration (CBA)</option>
+                    <option>College of Education (CED)</option><option>College of Nursing (CON)</option>
                 </select>
 
-                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-5 rounded-2xl font-black uppercase italic shadow-lg mt-4">Create Account</button>
+                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Register & Finish</button>
             </div>
         </div>
     </div>
