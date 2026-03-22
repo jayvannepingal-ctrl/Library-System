@@ -14,15 +14,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-/* FIREBASE (UNCHANGED) */
+/* FIREBASE CONFIG (DI GINALAW) */
 const firebaseConfig = {
-apiKey:"AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
-authDomain:"student-library-system-3e72c.firebaseapp.com",
-databaseURL:"https://student-library-system-3e72c-default-rtdb.firebaseio.com",
-projectId:"student-library-system-3e72c",
-storageBucket:"student-library-system-3e72c.appspot.com",
-messagingSenderId:"80114803910",
-appId:"1:80114803910:web:9dd831301ce90972d2a3c7"
+apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
+authDomain: "student-library-system-3e72c.firebaseapp.com",
+databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
+projectId: "student-library-system-3e72c",
+storageBucket: "student-library-system-3e72c.appspot.com",
+messagingSenderId: "80114803910",
+appId: "1:80114803910:web:9dd831301ce90972d2a3c7"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -30,15 +30,15 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-const ADMIN_EMAILS=["jcesperanza@neu.edu.ph","jayvanne.pingal@neu.edu.ph"];
+const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph","jayvanne.pingal@neu.edu.ph"];
 
-window.studentsData={};
-window.logsData=[];
+window.studentsData = {};
+window.logsData = [];
 
-const isValidID=id=>/^\d{2}-\d{5}-\d{3}$/.test(id);
+const isValidID = id => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
 /* AUTH */
-onAuthStateChanged(auth,user=>{
+onAuthStateChanged(auth,(user)=>{
 if(user && ADMIN_EMAILS.includes(user.email)){
 document.getElementById("adminPanel").classList.remove("hidden");
 }else{
@@ -46,24 +46,24 @@ document.getElementById("adminPanel").classList.add("hidden");
 }
 });
 
-/* FETCH */
+/* DATA */
 onValue(ref(db,'students'),snap=>{
-window.studentsData=snap.val()||{};
+window.studentsData = snap.val() || {};
 updateTable();
 });
 
 onValue(ref(db,'logs'),snap=>{
-window.logsData=snap.val()?Object.values(snap.val()):[];
+window.logsData = snap.val()?Object.values(snap.val()):[];
 updateStats();
 renderChart();
 });
 
 /* TIME IN */
-window.handleLog=async()=>{
+async function handleLog(){
 const id=document.getElementById("studentID").value.trim();
 const reason=document.getElementById("visitReason").value;
 
-if(!isValidID(id)) return alert("Format: 00-00000-000");
+if(!isValidID(id)) return alert("Use format: 00-00000-000");
 
 const user=window.studentsData[id];
 
@@ -72,6 +72,7 @@ showMsg("Profile not found. Please Sign-in with Google to Register.");
 try{
 const res=await signInWithPopup(auth,provider);
 
+/* CHECK DUPLICATE */
 const exist=Object.values(window.studentsData)
 .find(u=>u.email===res.user.email);
 
@@ -80,11 +81,12 @@ if(exist){ showMsg("Account is already exist"); return; }
 document.getElementById("reg-id").value=id;
 document.getElementById("reg-email").value=res.user.email;
 document.getElementById("regModal").classList.remove("hidden");
-}catch(e){}
+
+}catch(e){ alert("Google login required"); }
 return;
 }
 
-if(user.blocked) return alert("Blocked by admin");
+if(user.blocked) return alert("Blocked ka ng admin");
 
 const now=new Date();
 
@@ -98,7 +100,7 @@ fullDate:now.toISOString()
 
 showMsg("Welcome to Library");
 document.getElementById("studentID").value="";
-};
+}
 
 /* MESSAGE */
 function showMsg(msg){
@@ -109,7 +111,7 @@ setTimeout(()=>box.classList.add("hidden"),3000);
 }
 
 /* SIGNUP */
-window.saveUser=()=>{
+function saveUser(){
 const id=document.getElementById("reg-id").value;
 
 set(ref(db,'students/'+id),{
@@ -122,43 +124,28 @@ blocked:false
 document.getElementById("regModal").classList.add("hidden");
 handleLog();
 });
-};
+}
 
 /* ADMIN */
-window.loginAdmin=()=>signInWithPopup(auth,provider);
-window.logoutAdmin=()=>signOut(auth);
+function loginAdmin(){ signInWithPopup(auth,provider); }
+function logoutAdmin(){ signOut(auth); }
 
-window.toggleBlock=(id,status)=>{
+function toggleBlock(id,status){
 update(ref(db,'students/'+id),{blocked:!status});
-};
+}
 
 /* STATS */
 function updateStats(){
 document.getElementById("total").innerText=window.logsData.length;
 }
 
-/* TABLE + SEARCH */
-window.searchUser=()=>{
-const val=document.getElementById("search").value.toLowerCase();
-const list=document.getElementById("table");
-list.innerHTML="";
-Object.entries(window.studentsData).forEach(([id,data])=>{
-if(data.name.toLowerCase().includes(val)){
-list.innerHTML+=row(id,data);
-}
-});
-};
-
+/* TABLE */
 function updateTable(){
 const list=document.getElementById("table");
 list.innerHTML="";
 Object.entries(window.studentsData).forEach(([id,data])=>{
-list.innerHTML+=row(id,data);
-});
-}
-
-function row(id,data){
-return `<tr class="border-b">
+list.innerHTML+=`
+<tr class="border-b">
 <td>${id}</td>
 <td>${data.name}</td>
 <td>${data.email}</td>
@@ -170,16 +157,10 @@ return `<tr class="border-b">
 class="bg-red-500 text-white px-2 rounded">
 ${data.blocked?"Unblock":"Block"}
 </button>
-</td></tr>`;
+</td>
+</tr>`;
+});
 }
-
-/* EXPORT */
-window.exportExcel=()=>{
-const ws=XLSX.utils.json_to_sheet(window.logsData);
-const wb=XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb,ws,"Logs");
-XLSX.writeFile(wb,"LibraryLogs.xlsx");
-};
 
 /* CHART */
 let chart;
@@ -201,14 +182,31 @@ type:'bar',
 data:{labels,datasets:[{label:'Visitors',data}]}
 });
 }
+
+/* EXPORT */
+function exportExcel(){
+const ws=XLSX.utils.json_to_sheet(window.logsData);
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Logs");
+XLSX.writeFile(wb,"LibraryLogs.xlsx");
+}
+
+/* 🔥 FIX (IMPORTANT) */
+window.handleLog = handleLog;
+window.saveUser = saveUser;
+window.loginAdmin = loginAdmin;
+window.logoutAdmin = logoutAdmin;
+window.toggleBlock = toggleBlock;
+window.exportExcel = exportExcel;
+
 </script>
 </head>
 
-<body class="bg-gray-100 p-6">
+<body class="bg-green-100 p-6">
 
-<!-- USER -->
 <div class="bg-white p-6 rounded-xl max-w-md mx-auto shadow">
 <img src="download.png" class="w-16 mx-auto mb-3">
+
 <div id="msg" class="hidden text-green-600 text-center"></div>
 
 <select id="visitReason" class="w-full p-2 border mb-2">
@@ -226,18 +224,16 @@ class="w-full p-3 border mb-2 text-center">
 TIME IN
 </button>
 
-<button onclick="loginAdmin()" class="text-sm mt-2">Admin Login</button>
+<button onclick="loginAdmin()" class="text-sm mt-2">
+Admin Login
+</button>
 </div>
 
-<!-- ADMIN -->
-<div id="adminPanel" class="hidden mt-10">
+<div id="adminPanel" class="hidden mt-10 max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
 
-<h2 class="text-xl font-bold">Dashboard</h2>
+<h2 class="text-xl font-bold">Admin Dashboard</h2>
 
-<div>Total Visitors: <span id="total">0</span></div>
-
-<input id="search" placeholder="Search name..."
-oninput="searchUser()" class="border p-2 mt-2">
+<p>Total Visitors: <span id="total">0</span></p>
 
 <button onclick="exportExcel()" class="bg-blue-500 text-white px-3 py-1 mt-2">
 Export Excel
@@ -260,17 +256,19 @@ Logout
 
 </div>
 
-<!-- SIGNUP -->
 <div id="regModal" class="hidden fixed inset-0 bg-black/70 flex justify-center items-center">
 <div class="bg-white p-6 rounded">
+
 <input id="reg-id" readonly class="border p-2 mb-2 w-full">
 <input id="reg-email" readonly class="border p-2 mb-2 w-full">
+
 <input id="reg-name" placeholder="Full Name" class="border p-2 mb-2 w-full">
 
 <select id="reg-college" class="border p-2 mb-2 w-full">
-<option>CICS</option>
-<option>CEA</option>
-<option>CAS</option>
+<option>College of Informatics and Computing Studies (CICS)</option>
+<option>College of Engineering and Architecture (CEA)</option>
+<option>College of Nursing (CON)</option>
+<option>College of Arts and Sciences (CAS)</option>
 </select>
 
 <select id="reg-year" class="border p-2 mb-2 w-full">
@@ -283,6 +281,7 @@ Logout
 <button onclick="saveUser()" class="bg-green-600 text-white w-full p-2">
 Save
 </button>
+
 </div>
 </div>
 
