@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>NEU Library System | Ultimate</title>
+<title>NEU Library System</title>
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -15,15 +14,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-/* CONFIG */
+/* FIREBASE (UNCHANGED) */
 const firebaseConfig = {
-apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
-authDomain: "student-library-system-3e72c.firebaseapp.com",
-databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
-projectId: "student-library-system-3e72c",
-storageBucket: "student-library-system-3e72c.firebasestorage.app",
-messagingSenderId: "80114803910",
-appId: "1:80114803910:web:9dd831301ce90972d2a3c7"
+apiKey:"AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
+authDomain:"student-library-system-3e72c.firebaseapp.com",
+databaseURL:"https://student-library-system-3e72c-default-rtdb.firebaseio.com",
+projectId:"student-library-system-3e72c",
+storageBucket:"student-library-system-3e72c.appspot.com",
+messagingSenderId:"80114803910",
+appId:"1:80114803910:web:9dd831301ce90972d2a3c7"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -31,134 +30,164 @@ const db = getDatabase(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph"];
+const ADMIN_EMAILS=["jcesperanza@neu.edu.ph","jayvanne.pingal@neu.edu.ph"];
 
-let studentsData = {};
-let logsData = [];
-let chart;
+window.studentsData={};
+window.logsData=[];
+
+const isValidID=id=>/^\d{2}-\d{5}-\d{3}$/.test(id);
 
 /* AUTH */
-onAuthStateChanged(auth,(user)=>{
+onAuthStateChanged(auth,user=>{
 if(user && ADMIN_EMAILS.includes(user.email)){
-showAdmin();
+document.getElementById("adminPanel").classList.remove("hidden");
 }else{
-showUser();
+document.getElementById("adminPanel").classList.add("hidden");
 }
 });
 
 /* FETCH */
 onValue(ref(db,'students'),snap=>{
-studentsData = snap.val() || {};
-renderUsers();
+window.studentsData=snap.val()||{};
+updateTable();
 });
 
 onValue(ref(db,'logs'),snap=>{
-logsData = snap.val()?Object.values(snap.val()):[];
-renderLogs();
+window.logsData=snap.val()?Object.values(snap.val()):[];
 updateStats();
-updateChart();
+renderChart();
 });
 
-/* MESSAGE */
-function msg(t){
-const b=document.getElementById("msg");
-b.innerText=t;
-b.classList.remove("hidden");
-setTimeout(()=>b.classList.add("hidden"),3000);
-}
-
-/* ID */
-const isValidID = id => /^\d{2}-\d{5}-\d{3}$/.test(id);
-
 /* TIME IN */
-window.handleLog = async ()=>{
+window.handleLog=async()=>{
 const id=document.getElementById("studentID").value.trim();
 const reason=document.getElementById("visitReason").value;
 
-if(!isValidID(id)){ msg("Format: 00-00000-000"); return; }
+if(!isValidID(id)) return alert("Format: 00-00000-000");
 
-const user=studentsData[id];
+const user=window.studentsData[id];
 
 if(!user){
-msg("Profile not found. Please Sign-in with Google to Register.");
-const r=await signInWithPopup(auth,provider);
+showMsg("Profile not found. Please Sign-in with Google to Register.");
+try{
+const res=await signInWithPopup(auth,provider);
+
+const exist=Object.values(window.studentsData)
+.find(u=>u.email===res.user.email);
+
+if(exist){ showMsg("Account is already exist"); return; }
+
 document.getElementById("reg-id").value=id;
-document.getElementById("reg-name").value=r.user.displayName;
-document.getElementById("reg").classList.remove("hidden");
+document.getElementById("reg-email").value=res.user.email;
+document.getElementById("regModal").classList.remove("hidden");
+}catch(e){}
 return;
 }
 
-if(user.blocked){ msg("Blocked user"); return; }
+if(user.blocked) return alert("Blocked by admin");
 
 const now=new Date();
 
 push(ref(db,'logs'),{
-id,
-name:user.name,
-college:user.college,
-role:user.role,
-reason,
-email: auth.currentUser?auth.currentUser.email:"N/A",
-date: now.toLocaleDateString(),
-time: now.toLocaleTimeString()
+id,name:user.name,email:user.email,
+college:user.college,year:user.year,
+reason,time:now.toLocaleTimeString(),
+date:now.toLocaleDateString(),
+fullDate:now.toISOString()
 });
 
-msg("Welcome to Library");
+showMsg("Welcome to Library");
 document.getElementById("studentID").value="";
 };
+
+/* MESSAGE */
+function showMsg(msg){
+const box=document.getElementById("msg");
+box.innerText=msg;
+box.classList.remove("hidden");
+setTimeout(()=>box.classList.add("hidden"),3000);
+}
 
 /* SIGNUP */
 window.saveUser=()=>{
 const id=document.getElementById("reg-id").value;
-const current=auth.currentUser;
-
-const exist=Object.values(studentsData).find(u=>u.email===current.email);
-if(exist){ msg("Account already exist"); return; }
 
 set(ref(db,'students/'+id),{
 name:document.getElementById("reg-name").value,
-role:document.getElementById("reg-role").value,
+email:document.getElementById("reg-email").value,
 college:document.getElementById("reg-college").value,
 year:document.getElementById("reg-year").value,
-email:current.email,
 blocked:false
 }).then(()=>{
-document.getElementById("reg").classList.add("hidden");
+document.getElementById("regModal").classList.add("hidden");
 handleLog();
 });
 };
 
 /* ADMIN */
-window.loginAdmin=async()=>{
-const r=await signInWithPopup(auth,provider);
-if(!ADMIN_EMAILS.includes(r.user.email)){
-msg("Not authorized");
-await signOut(auth);
-}
-};
-window.logout=()=>signOut(auth);
+window.loginAdmin=()=>signInWithPopup(auth,provider);
+window.logoutAdmin=()=>signOut(auth);
 
-function showAdmin(){
-document.getElementById("userUI").classList.add("hidden");
-document.getElementById("adminUI").classList.remove("hidden");
-}
-function showUser(){
-document.getElementById("userUI").classList.remove("hidden");
-document.getElementById("adminUI").classList.add("hidden");
-}
+window.toggleBlock=(id,status)=>{
+update(ref(db,'students/'+id),{blocked:!status});
+};
 
 /* STATS */
 function updateStats(){
-document.getElementById("total").innerText=logsData.length;
-document.getElementById("student").innerText=logsData.filter(l=>l.role==="Student").length;
-document.getElementById("admin").innerText=logsData.filter(l=>l.role!=="Student").length;
+document.getElementById("total").innerText=window.logsData.length;
 }
 
-/* CHART */
-function updateChart(){
-const counts={};
+/* TABLE + SEARCH */
+window.searchUser=()=>{
+const val=document.getElementById("search").value.toLowerCase();
+const list=document.getElementById("table");
+list.innerHTML="";
+Object.entries(window.studentsData).forEach(([id,data])=>{
+if(data.name.toLowerCase().includes(val)){
+list.innerHTML+=row(id,data);
+}
+});
+};
 
-logsData.forEach(l=>{
+function updateTable(){
+const list=document.getElementById("table");
+list.innerHTML="";
+Object.entries(window.studentsData).forEach(([id,data])=>{
+list.innerHTML+=row(id,data);
+});
+}
+
+function row(id,data){
+return `<tr class="border-b">
+<td>${id}</td>
+<td>${data.name}</td>
+<td>${data.email}</td>
+<td>${data.college}</td>
+<td>${data.year}</td>
+<td>${data.blocked?"BLOCKED":"ACTIVE"}</td>
+<td>
+<button onclick="toggleBlock('${id}',${data.blocked})"
+class="bg-red-500 text-white px-2 rounded">
+${data.blocked?"Unblock":"Block"}
+</button>
+</td></tr>`;
+}
+
+/* EXPORT */
+window.exportExcel=()=>{
+const ws=XLSX.utils.json_to_sheet(window.logsData);
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Logs");
+XLSX.writeFile(wb,"LibraryLogs.xlsx");
+};
+
+/* CHART */
+let chart;
+function renderChart(){
+const ctx=document.getElementById("chart").getContext("2d");
+
+const counts={};
+window.logsData.forEach(l=>{
 counts[l.date]=(counts[l.date]||0)+1;
 });
 
@@ -167,159 +196,93 @@ const data=Object.values(counts);
 
 if(chart) chart.destroy();
 
-chart=new Chart(document.getElementById("chart"),{
-type:"bar",
-data:{
-labels,
-datasets:[{label:"Visitors",data,backgroundColor:"green"}]
-}
+chart=new Chart(ctx,{
+type:'bar',
+data:{labels,datasets:[{label:'Visitors',data}]}
 });
 }
-
-/* USERS */
-function renderUsers(){
-const t=document.getElementById("users");
-const search=document.getElementById("searchUser").value.toLowerCase();
-
-t.innerHTML="";
-Object.entries(studentsData).forEach(([id,u])=>{
-if(!u.name.toLowerCase().includes(search)) return;
-
-t.innerHTML+=`
-<tr>
-<td>${id}</td>
-<td>${u.name}</td>
-<td>${u.college}</td>
-<td>${u.year}</td>
-<td>${u.email}</td>
-<td>${u.blocked?"Blocked":"Active"}</td>
-<td>
-<button onclick="toggleBlock('${id}',${u.blocked})">Block</button>
-<button onclick="editUser('${id}')">Edit</button>
-</td>
-</tr>`;
-});
-}
-
-window.toggleBlock=(id,state)=>{
-update(ref(db,'students/'+id),{blocked:!state});
-};
-
-window.editUser=(id)=>{
-const u=studentsData[id];
-const c=prompt("College",u.college);
-const y=prompt("Year",u.year);
-update(ref(db,'students/'+id),{college:c,year:y});
-};
-
-/* LOGS */
-function renderLogs(){
-const t=document.getElementById("logs");
-const search=document.getElementById("searchLog").value.toLowerCase();
-
-t.innerHTML="";
-logsData.forEach(l=>{
-if(!l.name.toLowerCase().includes(search)) return;
-
-t.innerHTML+=`
-<tr>
-<td>${l.name}</td>
-<td>${l.reason}</td>
-<td>${l.college}</td>
-<td>${l.email}</td>
-<td>${l.date}</td>
-<td>${l.time}</td>
-</tr>`;
-});
-}
-
-/* EXPORT */
-window.exportExcel=()=>{
-const ws = XLSX.utils.json_to_sheet(logsData);
-const wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, ws, "Logs");
-XLSX.writeFile(wb,"library_logs.xlsx");
-};
 </script>
 </head>
 
-<body class="bg-gray-100">
-
-<div class="bg-green-700 text-white p-4 flex gap-3 items-center">
-<img src="download.png" class="w-12 h-12 rounded-full">
-<h1>NEU Library System</h1>
-</div>
-
-<div class="max-w-6xl mx-auto mt-6">
+<body class="bg-gray-100 p-6">
 
 <!-- USER -->
-<div id="userUI" class="bg-white p-6 rounded shadow">
-<div id="msg" class="hidden bg-green-200 p-2 mb-2 text-center"></div>
+<div class="bg-white p-6 rounded-xl max-w-md mx-auto shadow">
+<img src="download.png" class="w-16 mx-auto mb-3">
+<div id="msg" class="hidden text-green-600 text-center"></div>
 
 <select id="visitReason" class="w-full p-2 border mb-2">
-<option>Reading - Leisure</option>
+<option>Reading</option>
 <option>Research</option>
 <option>Computer</option>
 <option>Assignments</option>
 <option>Books</option>
 </select>
 
-<input id="studentID" class="w-full p-3 border mb-2" placeholder="00-00000-000">
+<input id="studentID" placeholder="00-00000-000"
+class="w-full p-3 border mb-2 text-center">
 
-<button onclick="handleLog()" class="w-full bg-green-600 text-white p-3">TIME IN</button>
-<button onclick="loginAdmin()">Admin Login</button>
+<button onclick="handleLog()" class="w-full bg-green-600 text-white p-3">
+TIME IN
+</button>
+
+<button onclick="loginAdmin()" class="text-sm mt-2">Admin Login</button>
 </div>
 
 <!-- ADMIN -->
-<div id="adminUI" class="hidden space-y-4">
+<div id="adminPanel" class="hidden mt-10">
 
-<div class="grid grid-cols-3 gap-3">
-<div>Total: <span id="total"></span></div>
-<div>Students: <span id="student"></span></div>
-<div>Admin: <span id="admin"></span></div>
+<h2 class="text-xl font-bold">Dashboard</h2>
+
+<div>Total Visitors: <span id="total">0</span></div>
+
+<input id="search" placeholder="Search name..."
+oninput="searchUser()" class="border p-2 mt-2">
+
+<button onclick="exportExcel()" class="bg-blue-500 text-white px-3 py-1 mt-2">
+Export Excel
+</button>
+
+<canvas id="chart" class="mt-4"></canvas>
+
+<table class="w-full mt-4 border">
+<thead>
+<tr>
+<th>ID</th><th>Name</th><th>Email</th><th>College</th><th>Year</th><th>Status</th><th>Action</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+
+<button onclick="logoutAdmin()" class="bg-red-500 text-white p-2 mt-4">
+Logout
+</button>
+
 </div>
 
-<canvas id="chart"></canvas>
+<!-- SIGNUP -->
+<div id="regModal" class="hidden fixed inset-0 bg-black/70 flex justify-center items-center">
+<div class="bg-white p-6 rounded">
+<input id="reg-id" readonly class="border p-2 mb-2 w-full">
+<input id="reg-email" readonly class="border p-2 mb-2 w-full">
+<input id="reg-name" placeholder="Full Name" class="border p-2 mb-2 w-full">
 
-<input id="searchUser" placeholder="Search User" oninput="renderUsers()">
-<table class="w-full"><tbody id="users"></tbody></table>
-
-<input id="searchLog" placeholder="Search Logs" oninput="renderLogs()">
-<table class="w-full"><tbody id="logs"></tbody></table>
-
-<button onclick="exportExcel()">Export Excel</button>
-<button onclick="logout()">Logout</button>
-
-</div>
-
-</div>
-
-<!-- REGISTER -->
-<div id="reg" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center">
-<div class="bg-white p-6">
-<input id="reg-id" readonly class="border p-2 w-full">
-<input id="reg-name" class="border p-2 w-full">
-
-<select id="reg-role">
-<option>Student</option>
-<option>Teacher</option>
-<option>Admin</option>
-</select>
-
-<select id="reg-college">
+<select id="reg-college" class="border p-2 mb-2 w-full">
 <option>CICS</option>
 <option>CEA</option>
 <option>CAS</option>
 </select>
 
-<select id="reg-year">
+<select id="reg-year" class="border p-2 mb-2 w-full">
 <option>1st Year</option>
 <option>2nd Year</option>
 <option>3rd Year</option>
 <option>4th Year</option>
 </select>
 
-<button onclick="saveUser()">Save</button>
+<button onclick="saveUser()" class="bg-green-600 text-white w-full p-2">
+Save
+</button>
 </div>
 </div>
 
