@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEU Library System | Admin Edition</title>
+    <title>NEU Library System | Final Updated</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
@@ -19,17 +19,17 @@
             projectId: "student-library-system-3e72c",
             storageBucket: "student-library-system-3e72c.firebasestorage.app",
             messagingSenderId: "80114803910",
-            appId: "1:80114803910:web:9dd831301ce90972d2a3c7",
-            measurementId: "G-H8YCT6MRYV"
+            appId: "1:80114803910:web:9dd831301ce90972d2a3c7"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' });
-
+        
+        // White-listed Admins Only
         const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
+        
         window.studentsData = {};
         window.logsData = {};
 
@@ -52,83 +52,63 @@
             updateStatsCards();
         });
 
-        const isValidID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
-
+        // Functions
         window.handleLog = async () => {
-            const idInput = document.getElementById('studentID');
-            const id = idInput.value.trim();
+            const id = document.getElementById('studentID').value.trim();
             const reason = document.getElementById('visitReason').value;
-            
-            if(!isValidID(id)) return alert("Invalid ID Format!");
-
             const user = window.studentsData[id];
-            if (!user) return document.getElementById('profile-not-found').classList.remove('hidden');
-            if(user.isBlocked) return alert("Account BLOCKED.");
+
+            if (!user) {
+                document.getElementById('profile-not-found').classList.remove('hidden');
+                return;
+            }
+            if (user.isBlocked) return alert("Your account is BLOCKED. Please contact librarian.");
 
             const now = new Date();
+            const logKey = push(ref(db, 'logs')).key;
             const logEntry = {
-                id, name: user.name, role: user.role, college: user.college, reason: reason,
+                id, name: user.name, role: user.role, college: user.college, reason,
                 date: now.toLocaleDateString('en-CA'), timestamp: now.toISOString()
             };
 
-            await push(ref(db, 'logs'), logEntry);
+            await set(ref(db, 'logs/' + logKey), logEntry);
             document.getElementById('log-form-container').classList.add('hidden');
             document.getElementById('welcome-msg').classList.remove('hidden');
-            idInput.value = "";
             setTimeout(() => location.reload(), 2000);
-        };
-
-        window.startRegistration = async () => {
-            try {
-                const result = await signInWithPopup(auth, provider);
-                const googleEmail = result.user.email;
-                if(Object.values(window.studentsData).some(u => u.googleEmail === googleEmail)) {
-                    alert("Account already exists."); return await signOut(auth);
-                }
-                document.getElementById('attendance-view').classList.add('hidden');
-                document.getElementById('reg-id').value = document.getElementById('studentID').value.trim();
-                document.getElementById('reg-google-email').value = googleEmail;
-                document.getElementById('reg-modal').classList.remove('hidden');
-            } catch (e) { alert("Auth failed."); }
         };
 
         window.saveNewUser = () => {
             const id = document.getElementById('reg-id').value;
-            const fullName = document.getElementById('reg-full-name').value;
-            if(!fullName) return alert("Name is required");
+            const fullName = document.getElementById('reg-full-name').value.trim();
+            if(!fullName) return alert("Please enter your name.");
 
             const newUser = {
                 name: fullName, role: document.getElementById('reg-role').value,
                 college: document.getElementById('reg-college').value, year: document.getElementById('reg-year').value,
-                googleEmail: document.getElementById('reg-google-email').value, isBlocked: false,
-                photo: "https://ui-avatars.com/api/?name="+fullName
+                googleEmail: document.getElementById('reg-google-email').value, isBlocked: false
             };
             set(ref(db, 'students/' + id), newUser).then(() => {
                 alert("Registered!"); signOut(auth).then(() => location.reload());
             });
         };
 
-        window.deleteLog = (key) => { if(confirm("Delete log?")) remove(ref(db, 'logs/' + key)); };
-        window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
-        window.exportToExcel = () => {
-            const ws = XLSX.utils.json_to_sheet(Object.values(window.logsData));
-            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-            XLSX.writeFile(wb, "Library_Logs.xlsx");
+        window.deleteLog = (key) => {
+            if(confirm("Delete this log entry?")) remove(ref(db, 'logs/' + key));
         };
 
         window.applyFilters = () => updateStatsCards();
 
         function updateStatsCards() {
-            const logs = Object.values(window.logsData);
+            const logEntries = Object.entries(window.logsData).map(([key, data]) => ({ firebaseKey: key, ...data }));
             const fDate = document.getElementById('filterDate').value;
             const fCol = document.getElementById('filterCol').value;
             const fReason = document.getElementById('filterReason').value;
             const search = document.getElementById('adminSearch').value.toLowerCase();
 
-            const filtered = logs.filter(l => {
+            const filtered = logEntries.filter(l => {
                 return (fDate ? l.date === fDate : true) &&
-                       (fCol !== "All" ? l.college === fCol : true) &&
-                       (fReason !== "All" ? l.reason === fReason : true) &&
+                       (fCol !== "All Colleges" ? l.college === fCol : true) &&
+                       (fReason !== "All Reasons" ? l.reason === fReason : true) &&
                        (search ? (l.id.includes(search) || l.name.toLowerCase().includes(search)) : true);
             });
 
@@ -139,130 +119,124 @@
             const logList = document.getElementById('log-history-list');
             logList.innerHTML = "";
             filtered.reverse().forEach((log) => {
+                const dt = new Date(log.timestamp);
+                const displayTime = dt.toLocaleDateString([], {month:'2-digit', day:'2-digit'}) + ", " + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 logList.innerHTML += `<tr class="border-b text-[10px] hover:bg-slate-50">
-                    <td class="p-2">${new Date(log.timestamp).toLocaleTimeString()}</td>
-                    <td class="p-2 font-bold uppercase">${log.name}</td>
+                    <td class="p-2 font-mono">${displayTime}</td>
+                    <td class="p-2 font-black uppercase">${log.name}</td>
                     <td class="p-2">${log.reason}</td>
-                    <td class="p-2 text-red-500 cursor-pointer font-bold" onclick="deleteLog('${log.id}')">×</td>
+                    <td class="p-2 text-center"><button onclick="deleteLog('${log.firebaseKey}')" class="text-red-500 font-bold">×</button></td>
                 </tr>`;
             });
-        }
-
-        function showAdminPanel() {
-            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
-            document.getElementById('attendance-view').classList.add('hidden');
-            document.getElementById('admin-panel').classList.remove('hidden');
-        }
-
-        function hideAdminPanel() {
-            document.getElementById('main-card').classList.replace('max-w-6xl', 'max-w-xl');
-            document.getElementById('admin-panel').classList.add('hidden');
-            document.getElementById('attendance-view').classList.remove('hidden');
         }
 
         function updateUserTable() {
             const list = document.getElementById('user-manage-list');
             list.innerHTML = "";
             Object.entries(window.studentsData).forEach(([id, data]) => {
-                if(!data.name || id.length < 5) return;
                 list.innerHTML += `<tr class="border-b text-[10px]">
-                    <td class="p-2 font-bold">${id}</td><td class="p-2 uppercase">${data.name}</td>
+                    <td class="p-2 font-bold">${id}</td>
+                    <td class="p-2 uppercase font-black text-neu-green">${data.name}</td>
                     <td class="p-2">${data.college}</td>
-                    <td class="p-2"><button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 underline">${data.isBlocked ? 'Unblock' : 'Block'}</button></td>
+                    <td class="p-2 text-slate-500 font-bold">${data.role} (${data.year || 'N/A'})</td>
+                    <td class="p-2"><button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 underline font-bold">${data.isBlocked ? 'Unblock' : 'Block'}</button></td>
                 </tr>`;
             });
         }
 
+        window.showAdminPanel = () => {
+            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
+            document.getElementById('attendance-view').classList.add('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+        };
+        window.hideAdminPanel = () => {
+            document.getElementById('main-card').classList.replace('max-w-6xl', 'max-w-xl');
+            document.getElementById('admin-panel').classList.add('hidden');
+            document.getElementById('attendance-view').classList.remove('hidden');
+        };
         window.loginAdmin = () => signInWithPopup(auth, provider);
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
+        window.startRegistration = async () => {
+            const result = await signInWithPopup(auth, provider);
+            document.getElementById('reg-id').value = document.getElementById('studentID').value;
+            document.getElementById('reg-google-email').value = result.user.email;
+            document.getElementById('reg-modal').classList.remove('hidden');
+        };
     </script>
-    <style> :root { --neu-green: #008000; --neu-red: #CC0000; } .bg-neu-green { background-color: var(--neu-green); } </style>
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col font-sans">
-    <nav class="bg-neu-green text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-neu-red">
+    <nav class="bg-[#008000] text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-[#CC0000]">
         <div class="flex items-center gap-4">
-            <img src="download.png" onerror="this.src='https://via.placeholder.com/60?text=NEU'" class="h-14 w-14 bg-white rounded-full p-1">
-            <h1 class="font-black text-lg uppercase tracking-tighter">NEU Library System</h1>
+            <img src="download.png" onerror="this.src='https://via.placeholder.com/60'" class="h-12 bg-white rounded-full p-1">
+            <h1 class="font-black text-lg uppercase italic">NEU Library System</h1>
         </div>
         <div id="admin-display-name" class="text-[10px] font-mono opacity-70"></div>
     </nav>
 
     <main class="container mx-auto p-4 flex flex-col items-center justify-center flex-grow">
-        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-8 transition-all duration-500 relative">
+        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-[#008000] p-8 transition-all duration-500">
             
             <div id="attendance-view" class="text-center space-y-6">
-                <div id="welcome-msg" class="hidden py-10"><h2 class="text-4xl font-black text-neu-green italic">Welcome!</h2></div>
+                <div id="welcome-msg" class="hidden py-10"><h2 class="text-4xl font-black text-[#008000] italic">Welcome!</h2></div>
                 <div id="log-form-container" class="space-y-4">
-                    <h2 class="text-3xl font-black text-neu-green uppercase italic tracking-widest">Time In</h2>
+                    <h2 class="text-3xl font-black text-[#008000] uppercase italic">Time In</h2>
                     <select id="visitReason" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold">
                         <option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
                     </select>
-                    <input type="text" id="studentID" placeholder="00-00000-000" maxlength="12" class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase bg-slate-50">
-                    <button onclick="handleLog()" class="w-full bg-neu-green text-white font-black py-5 rounded-[2rem] text-xl uppercase shadow-lg hover:scale-105 transition-transform">Confirm Attendance</button>
-                    <div id="profile-not-found" class="hidden p-4 bg-red-50 rounded-2xl border border-red-200 text-xs">
-                        <p class="text-red-600 font-bold mb-2">No Profile Found. Register now?</p>
-                        <button onclick="startRegistration()" class="bg-red-600 text-white px-6 py-2 rounded-xl uppercase font-black">Register with Google</button>
+                    <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase bg-slate-50">
+                    <button onclick="handleLog()" class="w-full bg-[#008000] text-white font-black py-5 rounded-[2rem] text-xl shadow-lg hover:scale-105 transition-transform">Confirm</button>
+                    <div id="profile-not-found" class="hidden p-4 bg-red-50 rounded-2xl border border-red-200 text-[10px] text-red-600 font-bold">
+                        No Profile Found. <button onclick="startRegistration()" class="underline text-red-700">Register with Google</button>
                     </div>
-                    <button onclick="loginAdmin()" class="text-[10px] text-slate-300 font-bold uppercase tracking-widest mt-4">🔒 Admin Portal</button>
+                    <button onclick="loginAdmin()" class="text-[10px] text-slate-300 font-bold uppercase mt-4">🔒 Admin Portal</button>
                 </div>
             </div>
 
             <div id="admin-panel" class="hidden space-y-6">
                 <div class="flex justify-between items-center border-b pb-4">
-                    <h2 class="text-2xl font-black text-neu-green uppercase italic">Admin Dashboard</h2>
+                    <h2 class="text-2xl font-black text-[#008000] uppercase italic">Admin Dashboard</h2>
                     <div class="flex gap-2">
-                        <button onclick="exportToExcel()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-bold">EXPORT EXCEL</button>
-                        <button onclick="logoutAdmin()" class="bg-neu-red text-white px-4 py-2 rounded-xl text-[10px] font-bold">LOGOUT</button>
+                        <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-5 py-2 rounded-xl text-[10px] font-black shadow-md">LOGOUT</button>
                     </div>
                 </div>
-
-                <div class="space-y-3">
-                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name or ID Number..." class="w-full p-3 border-2 rounded-2xl font-bold text-sm shadow-sm outline-none focus:border-neu-green">
-                    <div class="grid grid-cols-3 gap-2 text-[10px]">
-                        <input type="date" id="filterDate" onchange="applyFilters()" class="p-2 border rounded-xl font-bold">
-                        <select id="filterCol" onchange="applyFilters()" class="p-2 border rounded-xl font-bold">
-                            <option>All</option><option>IS</option><option>CICS</option><option>CAS</option><option>CEA</option><option>CBA</option><option>CN</option><option>CED</option><option>COM</option>
-                        </select>
-                        <select id="filterReason" onchange="applyFilters()" class="p-2 border rounded-xl font-bold">
-                            <option>All</option><option>Reading</option><option>Research</option><option>Computer Use</option>
-                        </select>
-                    </div>
+                <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name or ID..." class="w-full p-3 border-2 rounded-2xl font-bold text-sm shadow-sm">
+                <div class="grid grid-cols-3 gap-2 text-[10px]">
+                    <input type="date" id="filterDate" onchange="applyFilters()" class="p-2 border rounded-xl font-bold">
+                    <select id="filterCol" onchange="applyFilters()" class="p-2 border rounded-xl font-bold">
+                        <option>All Colleges</option><option>IS</option><option>CICS</option><option>CAS</option><option>CEA</option><option>CBA</option><option>CN</option><option>CED</option><option>COM</option>
+                    </select>
+                    <select id="filterReason" onchange="applyFilters()" class="p-2 border rounded-xl font-bold">
+                        <option>All Reasons</option><option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
+                    </select>
                 </div>
-
                 <div class="grid grid-cols-3 gap-3">
-                    <div class="bg-neu-green text-white p-4 rounded-3xl shadow-md"><p class="text-[8px] uppercase font-bold opacity-70">Visitors</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
-                    <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[8px] uppercase font-bold text-slate-400">Students</p><h3 id="stat-student" class="text-2xl font-black text-neu-green">0</h3></div>
-                    <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[8px] uppercase font-bold text-slate-400">Staff/Admin</p><h3 id="stat-staff" class="text-2xl font-black text-neu-red">0</h3></div>
+                    <div class="bg-[#008000] text-white p-5 rounded-3xl"><p class="text-[8px] font-black opacity-70">VISITORS</p><h3 id="stat-total" class="text-3xl font-black">0</h3></div>
+                    <div class="bg-white border p-5 rounded-3xl"><p class="text-[8px] font-black text-slate-400">STUDENTS</p><h3 id="stat-student" class="text-3xl font-black text-[#008000]">0</h3></div>
+                    <div class="bg-white border p-5 rounded-3xl"><p class="text-[8px] font-black text-slate-400">STAFF/ADMIN</p><h3 id="stat-staff" class="text-3xl font-black text-[#CC0000]">0</h3></div>
                 </div>
-
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="bg-white border rounded-3xl overflow-hidden max-h-60 overflow-y-auto shadow-sm">
-                        <table class="w-full text-left"><thead class="bg-slate-50 sticky top-0 text-[9px] uppercase font-black text-slate-400"><tr><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Coll</th><th class="p-2">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table>
-                    </div>
-                    <div class="bg-white border rounded-3xl overflow-hidden max-h-60 overflow-y-auto shadow-sm">
-                        <table class="w-full text-left"><thead class="bg-slate-50 sticky top-0 text-[9px] uppercase font-black text-slate-400"><tr><th class="p-2">Time</th><th class="p-2">Name</th><th class="p-2">Reason</th><th class="p-2">X</th></tr></thead><tbody id="log-history-list"></tbody></table>
-                    </div>
+                    <div class="bg-white border rounded-3xl overflow-hidden shadow-sm"><table class="w-full text-left"><thead class="bg-slate-50 text-[9px] font-black uppercase text-slate-400"><tr><th class="p-3">ID</th><th class="p-3">Name</th><th class="p-3">Role/Yr</th><th class="p-3">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table></div>
+                    <div class="bg-white border rounded-3xl overflow-hidden shadow-sm"><table class="w-full text-left"><thead class="bg-slate-50 text-[9px] font-black uppercase text-slate-400"><tr><th class="p-3">Date/Time</th><th class="p-3">Name</th><th class="p-3">Reason</th><th class="p-3">X</th></tr></thead><tbody id="log-history-list"></tbody></table></div>
                 </div>
             </div>
         </div>
     </main>
 
     <div id="reg-modal" class="hidden fixed inset-0 bg-slate-900 flex items-center justify-center p-4 z-[9999] backdrop-blur-xl">
-        <div class="bg-white rounded-[3rem] p-8 max-w-md w-full border-t-8 border-neu-red shadow-2xl relative">
-            <button onclick="location.reload()" class="absolute top-6 right-8 text-slate-300 font-black">CANCEL</button>
-            <h2 class="text-2xl font-black text-neu-green mb-6 uppercase italic text-center">Create Profile</h2>
+        <div class="bg-white rounded-[3rem] p-8 max-w-md w-full border-t-8 border-[#CC0000] shadow-2xl">
+            <h2 class="text-2xl font-black text-[#008000] mb-6 uppercase italic text-center">Create Profile</h2>
             <div class="space-y-4">
-                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-2xl font-bold text-center border-2 text-slate-500">
-                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-2xl text-[10px] font-mono border">
-                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-4 border-2 rounded-2xl font-bold uppercase outline-none focus:border-neu-green">
+                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-black text-center border-2 text-slate-500">
+                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-2xl text-[10px] text-center border">
+                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-4 border-2 rounded-2xl font-bold uppercase text-center focus:border-[#008000] outline-none">
                 <div class="grid grid-cols-2 gap-2">
-                    <select id="reg-role" class="p-3 border-2 rounded-2xl font-bold text-xs"><option>Student</option><option>Teacher</option><option>Admin</option></select>
+                    <select id="reg-role" class="p-3 border-2 rounded-2xl font-bold text-xs"><option>Student</option><option>Teacher</option></select>
                     <select id="reg-year" class="p-3 border-2 rounded-2xl font-bold text-xs"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option></select>
                 </div>
                 <select id="reg-college" class="w-full p-4 border-2 rounded-2xl font-bold text-xs">
                     <option>Integrated School (IS)</option><option>CICS</option><option>CAS</option><option>CEA</option><option>CBA</option><option>CN</option><option>CED</option><option>COM</option>
                 </select>
-                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-5 rounded-[2rem] font-black uppercase text-lg shadow-xl hover:bg-green-700 transition-colors">Complete Registration</button>
+                <button onclick="saveNewUser()" class="w-full bg-[#008000] text-white py-5 rounded-[2rem] font-black uppercase text-lg shadow-xl hover:bg-green-700 transition-colors">Register & Finish</button>
             </div>
         </div>
     </div>
