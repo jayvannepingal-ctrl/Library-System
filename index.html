@@ -72,7 +72,6 @@ showMsg("Profile not found. Please Sign-in with Google to Register.");
 try{
 const res=await signInWithPopup(auth,provider);
 
-/* CHECK DUPLICATE */
 const exist=Object.values(window.studentsData)
 .find(u=>u.email===res.user.email);
 
@@ -90,10 +89,15 @@ if(user.blocked) return alert("Blocked ka ng admin");
 
 const now=new Date();
 
+/* ✅ FIXED (NO UNDEFINED ERROR) */
 push(ref(db,'logs'),{
-id,name:user.name,email:user.email,
-college:user.college,year:user.year,
-reason,time:now.toLocaleTimeString(),
+id,
+name:user.name || "No Name",
+email:user.email || "No Email",
+college:user.college || "N/A",
+year:user.year || "N/A",
+reason,
+time:now.toLocaleTimeString(),
 date:now.toLocaleDateString(),
 fullDate:now.toISOString()
 });
@@ -116,7 +120,7 @@ const id=document.getElementById("reg-id").value;
 
 set(ref(db,'students/'+id),{
 name:document.getElementById("reg-name").value,
-email:document.getElementById("reg-email").value,
+email:document.getElementById("reg-email").value || "No Email",
 college:document.getElementById("reg-college").value,
 year:document.getElementById("reg-year").value,
 blocked:false
@@ -148,7 +152,7 @@ list.innerHTML+=`
 <tr class="border-b">
 <td>${id}</td>
 <td>${data.name}</td>
-<td>${data.email}</td>
+<td>${data.email || "No Email"}</td>
 <td>${data.college}</td>
 <td>${data.year}</td>
 <td>${data.blocked?"BLOCKED":"ACTIVE"}</td>
@@ -191,7 +195,7 @@ XLSX.utils.book_append_sheet(wb,ws,"Logs");
 XLSX.writeFile(wb,"LibraryLogs.xlsx");
 }
 
-/* 🔥 FIX (IMPORTANT) */
+/* FIX BUTTONS */
 window.handleLog = handleLog;
 window.saveUser = saveUser;
 window.loginAdmin = loginAdmin;
