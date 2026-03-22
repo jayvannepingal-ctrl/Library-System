@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEU Library System | Admin Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // WAG GALAWIN ANG CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
             authDomain: "student-library-system-3e72c.firebaseapp.com",
@@ -27,18 +27,20 @@
         const db = getDatabase(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-        // Force account selection everytime
         provider.setCustomParameters({ prompt: 'select_account' });
 
         const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
         window.studentsData = {};
-        window.logsData = [];
+        window.logsData = {};
 
+        // 1. AUTH WATCHER - STRICT ADMIN ONLY
         onAuthStateChanged(auth, (user) => {
+            const adminDisplay = document.getElementById('admin-display-name');
             if (user && ADMIN_EMAILS.includes(user.email)) {
-                document.getElementById('admin-display-name').innerText = "Admin: " + user.email;
+                adminDisplay.innerText = "Logged in: " + user.email;
                 showAdminPanel();
             } else {
+                adminDisplay.innerText = "";
                 hideAdminPanel();
             }
         });
@@ -49,20 +51,17 @@
         });
 
         onValue(ref(db, 'logs'), (snapshot) => {
-            const val = snapshot.val();
-            window.logsData = val ? Object.values(val) : [];
+            window.logsData = snapshot.val() || {};
             updateStatsCards();
         });
 
-        // 00-00000-000 Format
         const isValidID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
+        // 2. TIME IN LOGIC
         window.handleLog = async () => {
             const idInput = document.getElementById('studentID');
             const id = idInput.value.trim();
             const reason = document.getElementById('visitReason').value;
-            const container = document.getElementById('log-form-container');
-            const welcomeMsg = document.getElementById('welcome-msg');
             
             if(!isValidID(id)) {
                 alert("Maling ID Format! Gamitin ang: 00-00000-000");
@@ -72,33 +71,12 @@
             const user = window.studentsData[id];
 
             if (!user) {
-                if(confirm("Profile not found. Please Sign-in with Google to Register.")) {
-                    try {
-                        const result = await signInWithPopup(auth, provider);
-                        const googleEmail = result.user.email;
-                        
-                        // Check if Google Email already registered to another ID
-                        const exists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
-                        if(exists) {
-                            alert("Account is already exist");
-                            await signOut(auth);
-                            return;
-                        }
-
-                        document.getElementById('reg-id').value = id;
-                        document.getElementById('reg-google-email').value = googleEmail;
-                        document.getElementById('reg-modal').classList.remove('hidden');
-                    } catch (e) { alert("Google Sign-in failed."); }
-                }
+                document.getElementById('profile-not-found').classList.remove('hidden');
                 return;
             }
 
-            if(user.isBlocked) {
-                alert("This account is BLOCKED.");
-                return;
-            }
+            if(user.isBlocked) { alert("This account is BLOCKED."); return; }
 
-            // SUCCESSFUL LOG
             const now = new Date();
             const logEntry = {
                 id: id,
@@ -106,22 +84,41 @@
                 role: user.role,
                 college: user.college,
                 reason: reason,
-                timestamp: now.toLocaleTimeString(),
                 date: now.toLocaleDateString('en-CA'),
-                fullDate: now.toLocaleString()
+                timestamp: now.toLocaleString()
             };
 
             await push(ref(db, 'logs'), logEntry);
             
-            // Welcome Screen logic
-            container.classList.add('hidden');
-            welcomeMsg.classList.remove('hidden');
+            document.getElementById('log-form-container').classList.add('hidden');
+            document.getElementById('welcome-msg').classList.remove('hidden');
             idInput.value = "";
 
             setTimeout(() => {
-                welcomeMsg.classList.add('hidden');
-                container.classList.remove('hidden');
+                document.getElementById('welcome-msg').classList.add('hidden');
+                document.getElementById('log-form-container').classList.remove('hidden');
             }, 3000);
+        };
+
+        // 3. REGISTRATION LOGIC
+        window.startRegistration = async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const googleEmail = result.user.email;
+                const id = document.getElementById('studentID').value.trim();
+
+                const exists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
+                if(exists) {
+                    alert("Account is already exist");
+                    await signOut(auth);
+                    return;
+                }
+
+                document.getElementById('profile-not-found').classList.add('hidden');
+                document.getElementById('reg-id').value = id;
+                document.getElementById('reg-google-email').value = googleEmail;
+                document.getElementById('reg-modal').classList.remove('hidden');
+            } catch (e) { alert("Google Sign-in failed."); }
         };
 
         window.saveNewUser = () => {
@@ -130,8 +127,6 @@
             if(!fullName) { alert("Please type your full name."); return; }
 
             const file = document.getElementById('reg-photo').files[0];
-            const reader = new FileReader();
-
             const saveData = (photoUrl = "") => {
                 const newUser = {
                     name: fullName,
@@ -143,17 +138,22 @@
                     isBlocked: false
                 };
                 set(ref(db, 'students/' + id), newUser).then(() => {
-                    alert("Registration Successful! You can now Time In.");
+                    alert("Registered! Please Time-In now.");
                     document.getElementById('reg-modal').classList.add('hidden');
+                    signOut(auth); // Sign out para hindi mag-stay na admin kung hindi naman admin
                 });
             };
 
             if (file) {
+                const reader = new FileReader();
                 reader.onloadend = () => saveData(reader.result);
                 reader.readAsDataURL(file);
-            } else {
-                saveData();
-            }
+            } else { saveData(); }
+        };
+
+        // 4. ADMIN ACTIONS
+        window.deleteLog = (key) => {
+            if(confirm("Burahin itong entry?")) remove(ref(db, 'logs/' + key));
         };
 
         window.toggleBlock = (id, status) => {
@@ -167,23 +167,45 @@
             if(nYear && nColl) update(ref(db, 'students/' + id), { year: nYear, college: nColl });
         };
 
-        window.loginAdmin = async () => {
-            try {
-                const result = await signInWithPopup(auth, provider);
-                if (!ADMIN_EMAILS.includes(result.user.email)) {
-                    alert("Unauthorized Access.");
-                    await signOut(auth);
-                }
-            } catch (e) { alert("Admin Login Failed"); }
+        window.exportToExcel = () => {
+            const data = Object.values(window.logsData);
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+            XLSX.writeFile(wb, "Library_Logs.xlsx");
         };
 
-        window.logoutAdmin = () => signOut(auth).then(() => location.reload());
-
         function updateStatsCards() {
-            document.getElementById('stat-total').innerText = window.logsData.length;
-            document.getElementById('stat-student').innerText = window.logsData.filter(l => l.role === 'Student').length;
-            document.getElementById('stat-staff').innerText = window.logsData.filter(l => l.role !== 'Student').length;
+            const logs = Object.values(window.logsData);
+            const filterDate = document.getElementById('filterDate').value;
+            const filterCol = document.getElementById('filterCol').value;
+            const filterReason = document.getElementById('filterReason').value;
+
+            const filtered = logs.filter(l => {
+                const dMatch = filterDate ? l.date === filterDate : true;
+                const cMatch = filterCol !== "All" ? l.college === filterCol : true;
+                const rMatch = filterReason !== "All" ? l.reason === filterReason : true;
+                return dMatch && cMatch && rMatch;
+            });
+
+            document.getElementById('stat-total').innerText = filtered.length;
+            document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
+            document.getElementById('stat-staff').innerText = filtered.filter(l => l.role !== 'Student').length;
+
+            const logList = document.getElementById('log-history-list');
+            logList.innerHTML = "";
+            Object.entries(window.logsData).reverse().forEach(([key, log]) => {
+                logList.innerHTML += `<tr class="border-b text-[10px]">
+                    <td class="p-2">${log.timestamp}</td>
+                    <td class="p-2 font-bold">${log.id}</td>
+                    <td class="p-2">${log.name}</td>
+                    <td class="p-2">${log.reason}</td>
+                    <td class="p-2"><button onclick="deleteLog('${key}')" class="text-red-500 font-bold">Delete</button></td>
+                </tr>`;
+            });
         }
+
+        window.applyFilters = () => updateStatsCards();
 
         function showAdminPanel() {
             document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
@@ -201,6 +223,7 @@
             const list = document.getElementById('user-manage-list');
             list.innerHTML = "";
             Object.entries(window.studentsData).forEach(([id, data]) => {
+                if(id === "course" || id === "name" || id === "role") return; // Skip broken data
                 list.innerHTML += `<tr class="border-b text-xs">
                     <td class="p-2 font-bold">${id}</td>
                     <td class="p-2 flex items-center gap-2"><img src="${data.photo}" class="w-6 h-6 rounded-full border">${data.name}</td>
@@ -214,18 +237,10 @@
                     </td>
                 </tr>`;
             });
-
-            const logList = document.getElementById('log-history-list');
-            logList.innerHTML = "";
-            [...window.logsData].reverse().slice(0, 50).forEach(log => {
-                logList.innerHTML += `<tr class="border-b text-[10px]">
-                    <td class="p-2">${log.fullDate}</td>
-                    <td class="p-2 font-bold">${log.id}</td>
-                    <td class="p-2">${log.name}</td>
-                    <td class="p-2 italic">${log.reason}</td>
-                </tr>`;
-            });
         }
+
+        window.loginAdmin = () => signInWithPopup(auth, provider);
+        window.logoutAdmin = () => signOut(auth).then(() => location.reload());
     </script>
 
     <style>
@@ -233,117 +248,94 @@
         .bg-neu-green { background-color: var(--neu-green); }
         .text-neu-green { color: var(--neu-green); }
         .bg-neu-red { background-color: var(--neu-red); }
-        #main-card { transition: all 0.5s ease-in-out; }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen font-sans flex flex-col">
+<body class="bg-slate-100 min-h-screen flex flex-col">
 
     <nav class="bg-neu-green text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-neu-red">
         <div class="flex items-center gap-4">
             <img src="download.png" onerror="this.src='https://via.placeholder.com/60?text=NEU'" class="h-16 w-16 bg-white rounded-full p-1">
-            <div>
-                <h1 class="font-black text-xl uppercase leading-none">New Era University</h1>
-                <p class="text-[10px] uppercase font-bold opacity-80 tracking-widest">Library Management System</p>
-            </div>
+            <div><h1 class="font-black text-xl uppercase">New Era University</h1><p class="text-[10px] font-bold opacity-80">Library Management System</p></div>
         </div>
-        <div id="admin-display-name" class="text-xs font-mono opacity-80"></div>
+        <div id="admin-display-name" class="text-[10px] font-mono"></div>
     </nav>
 
     <main class="container mx-auto p-4 flex flex-col items-center justify-center flex-grow">
-        
         <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-8 text-center relative overflow-hidden">
             
-            <div id="attendance-view" class="w-full">
-                <div id="welcome-msg" class="hidden py-16">
-                    <h2 class="text-5xl font-black text-neu-green italic animate-pulse">Welcome to Library!</h2>
-                    <p class="text-slate-400 font-bold mt-4 uppercase">Success: Logged in to system</p>
-                </div>
+            <div id="attendance-view">
+                <div id="welcome-msg" class="hidden py-16"><h2 class="text-5xl font-black text-neu-green italic">Welcome to Library!</h2></div>
 
                 <div id="log-form-container" class="space-y-6">
                     <h2 class="text-4xl font-black text-neu-green uppercase italic">Time In</h2>
-                    
                     <div class="space-y-4 text-left">
-                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Reason for Visiting</label>
+                        <label class="text-[10px] font-black text-slate-400 uppercase">Reason for Visiting</label>
                         <select id="visitReason" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold">
-                            <optgroup label="Reading"><option>Leisure or assigned reading</option></optgroup>
-                            <optgroup label="Research"><option>Academic research & journals</option></optgroup>
-                            <optgroup label="Computer"><option>IT facilities & internet</option></optgroup>
-                            <optgroup label="Assignments"><option>Study & homework</option></optgroup>
-                            <optgroup label="Books"><option>Borrowing or returning items</option></optgroup>
+                            <option>Leisure or assigned reading</option><option>Academic research & journals</option>
+                            <option>IT facilities & internet</option><option>Study & homework</option><option>Borrowing or returning items</option>
                         </select>
-
-                        <input type="text" id="studentID" placeholder="00-00000-000" maxlength="12"
-                            class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase shadow-inner bg-slate-50">
-                        
-                        <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] text-2xl uppercase italic shadow-lg">
-                            Confirm Attendance
-                        </button>
+                        <input type="text" id="studentID" placeholder="00-00000-000" maxlength="12" class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase bg-slate-50">
+                        <button onclick="handleLog()" class="w-full bg-neu-green text-white font-black py-6 rounded-[2rem] text-2xl uppercase shadow-lg">Confirm Attendance</button>
                     </div>
 
-                    <div class="pt-6 border-t">
-                        <button onclick="loginAdmin()" class="text-slate-400 hover:text-neu-green font-bold text-xs uppercase tracking-widest">
-                            🔒 Admin Login
-                        </button>
+                    <div id="profile-not-found" class="hidden p-4 bg-red-50 rounded-2xl border border-red-200">
+                        <p class="text-red-600 font-bold text-sm mb-2">Profile not found. Please Sign-in with Google to Register.</p>
+                        <button onclick="startRegistration()" class="bg-red-600 text-white px-6 py-2 rounded-xl font-bold uppercase text-xs">OK</button>
                     </div>
+                    <div class="pt-4"><button onclick="loginAdmin()" class="text-slate-400 font-bold text-[10px] uppercase">🔒 Admin Login</button></div>
                 </div>
             </div>
 
-            <div id="admin-panel" class="hidden text-left w-full space-y-6">
+            <div id="admin-panel" class="hidden text-left space-y-6">
                 <div class="flex justify-between items-center border-b pb-4">
                     <h2 class="text-3xl font-black text-neu-green uppercase italic">Admin Portal</h2>
-                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-4 py-2 rounded-xl font-bold text-xs">LOGOUT</button>
+                    <div class="flex gap-2">
+                        <button onclick="exportToExcel()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs">EXPORT EXCEL</button>
+                        <button onclick="logoutAdmin()" class="bg-neu-red text-white px-4 py-2 rounded-xl font-bold text-xs">LOGOUT</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 bg-slate-50 p-4 rounded-2xl border">
+                    <div><label class="text-[8px] font-bold uppercase">Date</label><input type="date" id="filterDate" onchange="applyFilters()" class="w-full p-1 text-xs rounded border"></div>
+                    <div><label class="text-[8px] font-bold uppercase">College</label><select id="filterCol" onchange="applyFilters()" class="w-full p-1 text-xs rounded border"><option>All</option><option>CICS</option><option>CAS</option><option>CBA</option></select></div>
+                    <div><label class="text-[8px] font-bold uppercase">Reason</label><select id="filterReason" onchange="applyFilters()" class="w-full p-1 text-xs rounded border"><option>All</option><option>Leisure or assigned reading</option><option>Academic research & journals</option></select></div>
                 </div>
 
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-neu-green text-white p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase opacity-80">Total</p><h3 id="stat-total" class="text-3xl font-black">0</h3></div>
+                    <div class="bg-neu-green text-white p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase">Total Visitors</p><h3 id="stat-total" class="text-3xl font-black">0</h3></div>
                     <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase text-slate-400">Students</p><h3 id="stat-student" class="text-3xl font-black text-neu-green">0</h3></div>
-                    <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase text-slate-400">Admin</p><h3 id="stat-staff" class="text-3xl font-black text-neu-red">0</h3></div>
+                    <div class="bg-slate-50 border p-4 rounded-3xl"><p class="text-[10px] font-bold uppercase text-slate-400">Faculty/Admin</p><h3 id="stat-staff" class="text-3xl font-black text-neu-red">0</h3></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="bg-white border rounded-3xl overflow-hidden max-h-80 overflow-y-auto">
-                        <table class="w-full text-left"><thead class="bg-slate-50 sticky top-0 font-bold text-[10px] uppercase"><tr><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Col</th><th class="p-2">Role</th><th class="p-2">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table>
+                    <div class="bg-white border rounded-3xl overflow-hidden max-h-60 overflow-y-auto">
+                        <table class="w-full text-left text-[10px]"><thead class="bg-slate-50 sticky top-0"><tr><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">College</th><th class="p-2">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table>
                     </div>
-                    <div class="bg-white border rounded-3xl overflow-hidden max-h-80 overflow-y-auto">
-                        <table class="w-full text-left"><thead class="bg-slate-50 sticky top-0 font-bold text-[10px] uppercase"><tr><th class="p-2">Date/Time</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Reason</th></tr></thead><tbody id="log-history-list"></tbody></table>
+                    <div class="bg-white border rounded-3xl overflow-hidden max-h-60 overflow-y-auto">
+                        <table class="w-full text-left text-[10px]"><thead class="bg-slate-50 sticky top-0"><tr><th class="p-2">Time</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Del</th></tr></thead><tbody id="log-history-list"></tbody></table>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <div id="reg-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div id="reg-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-[3rem] p-8 max-w-md w-full border-t-8 border-neu-red overflow-y-auto max-h-[90vh]">
-            <h2 class="text-2xl font-black text-neu-green mb-4 uppercase italic">Create Profile</h2>
+            <h2 class="text-2xl font-black text-neu-green mb-4">Create Profile</h2>
             <div class="space-y-4">
-                <input type="file" id="reg-photo" accept="image/*" class="text-xs w-full p-2 border border-dashed rounded-xl">
-                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-center">
-                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-xl text-xs">
-                
-                <input type="text" id="reg-full-name" placeholder="Type your Full Name" class="w-full p-4 border-2 border-neu-green/20 rounded-2xl font-bold">
-
+                <input type="file" id="reg-photo" accept="image/*" class="text-xs w-full">
+                <input type="text" id="reg-id" readonly class="w-full p-2 bg-slate-100 rounded-xl font-bold text-center">
+                <input type="text" id="reg-google-email" readonly class="w-full p-2 bg-slate-50 rounded-xl text-xs">
+                <input type="text" id="reg-full-name" placeholder="Full Name" class="w-full p-3 border-2 rounded-xl font-bold">
                 <div class="grid grid-cols-2 gap-2">
-                    <select id="reg-role" class="p-3 border rounded-xl font-bold text-xs">
-                        <option>Student</option><option>Teacher</option><option>Admin</option>
-                    </select>
-                    <select id="reg-year" class="p-3 border rounded-xl font-bold text-xs">
-                        <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option>
-                    </select>
+                    <select id="reg-role" class="p-2 border rounded-xl font-bold text-xs"><option>Student</option><option>Teacher</option><option>Admin</option></select>
+                    <select id="reg-year" class="p-2 border rounded-xl font-bold text-xs"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option></select>
                 </div>
-
-                <select id="reg-college" class="w-full p-3 border rounded-xl font-bold text-xs">
-                    <option>Integrated School (IS)</option><option>College of Accountancy (COA)</option>
-                    <option>College of Agriculture (CAG)</option><option>College of Arts and Sciences (CAS)</option>
-                    <option>College of Business Administration (CBA)</option><option>College of Communication (COC)</option>
-                    <option>College of Informatics and Computing Studies (CICS)</option><option>College of Criminology (CCR)</option>
-                    <option>College of Education (CED)</option><option>College of Engineering and Architecture (CEA)</option>
-                    <option>College of Medical Technology (CMT)</option><option>College of Midwifery (CMW)</option>
-                    <option>College of Music (COM)</option><option>College of Nursing (CON)</option>
-                    <option>College of Physical Therapy (CPT)</option><option>College of Respiratory Therapy (CRT)</option>
-                    <option>School of International Relations (SOIR)</option>
+                <select id="reg-college" class="w-full p-2 border rounded-xl font-bold text-xs">
+                    <option>Integrated School (IS)</option><option>College of Informatics and Computing Studies (CICS)</option>
+                    <option>College of Arts and Sciences (CAS)</option><option>College of Engineering and Architecture (CEA)</option>
                 </select>
-
-                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Register & Finish</button>
+                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black uppercase">Register & Finish</button>
             </div>
         </div>
     </div>
