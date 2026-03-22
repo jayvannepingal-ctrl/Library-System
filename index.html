@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEU Library System | Admin Pro</title>
+    <title>NEU Library System | Final Version</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
@@ -31,6 +31,7 @@
         
         const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
         window.studentsData = {};
+        window.logsData = {};
         window.editingId = null;
 
         onAuthStateChanged(auth, (user) => {
@@ -46,11 +47,61 @@
             updateUserTable();
         });
 
-        // ADMIN EDIT PROFILE
+        onValue(ref(db, 'logs'), (snapshot) => {
+            window.logsData = snapshot.val() || {};
+            updateStatsCards();
+        });
+
+        // TIME IN LOGIC
+        window.handleLog = async () => {
+            const id = document.getElementById('studentID').value.trim();
+            const reason = document.getElementById('visitReason').value;
+            const user = window.studentsData[id];
+
+            if (!user) {
+                document.getElementById('profile-not-found').classList.remove('hidden');
+                return;
+            }
+            if (user.isBlocked) return alert("Account is BLOCKED. Please see the Librarian.");
+
+            const now = new Date();
+            const logEntry = {
+                id, name: user.name, role: user.role, college: user.college, reason,
+                date: now.toLocaleDateString('en-CA'), timestamp: now.toISOString()
+            };
+
+            await push(ref(db, 'logs'), logEntry);
+            document.getElementById('log-form-container').classList.add('hidden');
+            document.getElementById('welcome-msg').classList.remove('hidden');
+            setTimeout(() => location.reload(), 2000);
+        };
+
+        // REGISTRATION
+        window.startRegistration = async () => {
+            await signInWithPopup(auth, provider);
+            document.getElementById('reg-id').value = document.getElementById('studentID').value;
+            document.getElementById('reg-modal').classList.remove('hidden');
+        };
+
+        window.saveNewUser = () => {
+            const id = document.getElementById('reg-id').value;
+            const newUser = {
+                name: document.getElementById('reg-full-name').value.toUpperCase(),
+                role: document.getElementById('reg-role').value,
+                college: document.getElementById('reg-college').value,
+                isBlocked: false
+            };
+            set(ref(db, 'students/' + id), newUser).then(() => { 
+                alert("Profile Created!");
+                document.getElementById('reg-modal').classList.add('hidden');
+                document.getElementById('studentID').value = id; // Auto-fill for time in
+            });
+        };
+
+        // ADMIN: EDIT & UPLOAD
         window.editUser = (id) => {
             const user = window.studentsData[id];
             window.editingId = id;
-            document.getElementById('edit-id').value = id;
             document.getElementById('edit-name').value = user.name;
             document.getElementById('edit-role').value = user.role;
             document.getElementById('edit-college').value = user.college;
@@ -58,40 +109,20 @@
         };
 
         window.saveEdit = async () => {
-            const updates = {
-                name: document.getElementById('edit-name').value,
+            await update(ref(db, 'students/' + window.editingId), {
+                name: document.getElementById('edit-name').value.toUpperCase(),
                 role: document.getElementById('edit-role').value,
                 college: document.getElementById('edit-college').value
-            };
-            await update(ref(db, 'students/' + window.editingId), updates);
-            document.getElementById('edit-modal').classList.add('hidden');
-            alert("Profile Updated!");
-        };
-
-        // PROFILE PIC UPLOAD
-        window.uploadPic = async (id, file) => {
-            if(!file) return;
-            const storageRef = sRef(storage, `profiles/${id}`);
-            await uploadBytes(storageRef, file);
-            const url = await getDownloadURL(storageRef);
-            await update(ref(db, 'students/' + id), { profilePic: url });
-            alert("Photo Uploaded!");
-        };
-
-        window.saveNewUser = () => {
-            const id = document.getElementById('reg-id').value;
-            const newUser = {
-                name: document.getElementById('reg-full-name').value.trim(),
-                role: document.getElementById('reg-role').value,
-                college: document.getElementById('reg-college').value,
-                isBlocked: false
-            };
-            set(ref(db, 'students/' + id), newUser).then(() => { 
-                alert("Registered! You can now Time In.");
-                document.getElementById('reg-modal').classList.add('hidden');
-                // Automatic go back to time-in panel
-                document.getElementById('studentID').value = id;
             });
+            document.getElementById('edit-modal').classList.add('hidden');
+        };
+
+        window.uploadPic = async (id, file) => {
+            const sRefObj = sRef(storage, `profiles/${id}`);
+            await uploadBytes(sRefObj, file);
+            const url = await getDownloadURL(sRefObj);
+            await update(ref(db, 'students/' + id), { profilePic: url });
+            alert("Photo Updated!");
         };
 
         function updateUserTable() {
@@ -101,66 +132,121 @@
             
             Object.entries(window.studentsData).forEach(([id, data]) => {
                 if (search && !(id.includes(search) || data.name.toLowerCase().includes(search))) return;
-                const pic = data.profilePic ? data.profilePic : 'https://via.placeholder.com/40';
-
+                const pic = data.profilePic || 'https://via.placeholder.com/150';
                 list.innerHTML += `<tr class="border-b text-sm">
-                    <td class="p-3"><img src="${pic}" class="w-10 h-10 rounded-full border"></td>
+                    <td class="p-3"><img src="${pic}" class="w-12 h-12 rounded-full border-2 border-green-500 object-cover"></td>
                     <td class="p-3 font-bold">${id}</td>
-                    <td class="p-3 uppercase font-black text-green-700">${data.name}</td>
+                    <td class="p-3 font-black text-green-700 uppercase">${data.name}</td>
                     <td class="p-3">
                         <input type="file" id="file-${id}" class="hidden" onchange="uploadPic('${id}', this.files[0])">
-                        <button onclick="document.getElementById('file-${id}').click()" class="text-[10px] bg-slate-100 p-1 rounded">📷</button>
+                        <button onclick="document.getElementById('file-${id}').click()" class="text-xs bg-gray-100 p-1 rounded">📷 Pic</button>
                         <button onclick="editUser('${id}')" class="text-blue-600 underline ml-2">Edit</button>
                         <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 underline ml-2">${data.isBlocked ? 'Unblock' : 'Block'}</button>
                     </td>
                 </tr>`;
             });
         }
-        
+
+        function updateStatsCards() {
+            const logs = Object.values(window.logsData);
+            document.getElementById('stat-total').innerText = logs.length;
+            const logList = document.getElementById('log-history-list');
+            logList.innerHTML = "";
+            logs.reverse().slice(0, 50).forEach(log => {
+                logList.innerHTML += `<tr class="border-b text-xs">
+                    <td class="p-3">${new Date(log.timestamp).toLocaleString()}</td>
+                    <td class="p-3 font-bold uppercase">${log.name}</td>
+                    <td class="p-3 italic">${log.reason}</td>
+                </tr>`;
+            });
+        }
+
+        window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
         window.loginAdmin = () => signInWithPopup(auth, provider);
+        window.logoutAdmin = () => signOut(auth).then(() => location.reload());
         function showAdminPanel() { document.getElementById('admin-panel').classList.remove('hidden'); document.getElementById('attendance-view').classList.add('hidden'); }
         function hideAdminPanel() { document.getElementById('admin-panel').classList.add('hidden'); document.getElementById('attendance-view').classList.remove('hidden'); }
     </script>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans">
-    <div id="reg-modal" class="hidden fixed inset-0 bg-slate-900/90 flex items-center justify-center z-[9999]">
-        <div class="bg-white rounded-[3rem] p-10 max-w-lg w-full border-t-8 border-[#CC0000]">
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="float-right text-slate-300 font-black">CANCEL</button>
-            <h2 class="text-3xl font-black text-[#008000] mb-8 text-center italic">CREATE PROFILE</h2>
-            <div class="space-y-4">
-                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl text-center font-bold text-xl">
-                <input type="text" id="reg-full-name" placeholder="FULL NAME" class="w-full p-5 border-2 rounded-2xl font-bold uppercase text-center text-lg">
-                <select id="reg-role" class="w-full p-4 border-2 rounded-2xl font-bold">
-                    <option>Student</option><option>Teacher</option>
+    <nav class="bg-[#008000] text-white py-6 px-10 shadow-xl flex justify-between items-center border-b-8 border-[#CC0000]">
+        <h1 class="font-black text-3xl italic tracking-tighter uppercase">NEU Library System</h1>
+        <button onclick="loginAdmin()" class="text-xs opacity-50 hover:opacity-100 uppercase font-bold">Admin Login</button>
+    </nav>
+
+    <main class="container mx-auto p-6 mt-10">
+        <div id="attendance-view" class="max-w-2xl mx-auto bg-white rounded-[3rem] shadow-2xl p-12 border-t-8 border-[#008000]">
+            <div id="welcome-msg" class="hidden text-center py-10"><h2 class="text-6xl font-black text-[#008000] italic">WELCOME!</h2></div>
+            <div id="log-form-container" class="space-y-8 text-center">
+                <h2 class="text-5xl font-black text-[#008000] italic uppercase">Time In</h2>
+                <select id="visitReason" class="w-full p-6 bg-slate-50 border-2 rounded-2xl font-bold text-2xl">
+                    <option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
                 </select>
-                <select id="reg-college" class="w-full p-4 border-2 rounded-2xl font-bold">
+                <input type="text" id="studentID" placeholder="ENTER ID NUMBER" class="w-full p-10 border-4 border-slate-100 rounded-[2.5rem] text-center text-5xl font-mono uppercase focus:border-green-500 outline-none">
+                <button onclick="handleLog()" class="w-full bg-[#008000] text-white font-black py-8 rounded-[2.5rem] text-3xl shadow-xl hover:scale-105 transition-transform">CONFIRM</button>
+                <div id="profile-not-found" class="hidden p-6 bg-red-50 rounded-2xl border-2 border-red-200 text-red-600 font-bold text-lg">
+                    No Profile Found. <button onclick="startRegistration()" class="underline text-red-800">Register with Google</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="admin-panel" class="hidden bg-white rounded-[3rem] shadow-2xl p-10 border-t-8 border-[#008000]">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-4xl font-black text-[#008000] italic uppercase">Admin Dashboard</h2>
+                <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-8 py-3 rounded-2xl font-black shadow-lg">LOGOUT</button>
+            </div>
+            
+            <input type="text" id="adminSearch" onkeyup="updateUserTable()" placeholder="Search Name or ID..." class="w-full p-6 border-2 rounded-2xl font-bold text-xl mb-8 outline-none focus:border-green-500">
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div class="bg-white border-2 rounded-[2.5rem] overflow-hidden">
+                    <div class="bg-slate-50 p-4 font-black text-center text-slate-400 uppercase">User List</div>
+                    <div class="max-h-[500px] overflow-y-auto"><table class="w-full"><tbody id="user-manage-list"></tbody></table></div>
+                </div>
+                <div class="bg-white border-2 rounded-[2.5rem] overflow-hidden">
+                    <div class="bg-slate-50 p-4 font-black text-center text-slate-400 uppercase">Log History</div>
+                    <div class="max-h-[500px] overflow-y-auto"><table class="w-full"><tbody id="log-history-list"></tbody></table></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="reg-modal" class="hidden fixed inset-0 bg-slate-900/95 flex items-center justify-center z-[9999]">
+        <div class="bg-white rounded-[3rem] p-12 max-w-xl w-full border-t-8 border-[#CC0000] relative">
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="absolute top-8 right-10 text-slate-300 font-black text-xl hover:text-red-500">CANCEL</button>
+            <h2 class="text-4xl font-black text-[#008000] mb-10 text-center italic">CREATE PROFILE</h2>
+            <div class="space-y-6">
+                <input type="text" id="reg-id" readonly class="w-full p-5 bg-slate-100 rounded-2xl text-center font-bold text-2xl">
+                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-6 border-2 rounded-2xl font-bold uppercase text-center text-xl">
+                <select id="reg-role" class="w-full p-5 border-2 rounded-2xl font-bold text-lg"><option>Student</option><option>Teacher</option></select>
+                <select id="reg-college" class="w-full p-5 border-2 rounded-2xl font-bold text-lg">
                     <option disabled selected>Choice Department</option>
-                    <option>Integrated School (IS)</option>
-                    <option>College of Informatics and Computing Studies (CICS)</option>
-                    </select>
-                <button onclick="saveNewUser()" class="w-full bg-[#008000] text-white py-6 rounded-[2rem] font-black uppercase text-xl">Register & Finish</button>
+                    <option>Integrated School (IS)</option><option>College of Accountancy (COA)</option><option>College of Agriculture (CAG)</option>
+                    <option>College of Arts and Sciences (CAS)</option><option>College of Business Administration (CBA)</option>
+                    <option>College of Communication (COC)</option><option>College of Informatics and Computing Studies (CICS)</option>
+                    <option>College of Criminology (CCR)</option><option>College of Education (CED)</option><option>College of Engineering and Architecture (CEA)</option>
+                    <option>College of Medical Technology (CMT)</option><option>College of Midwifery (CMW)</option><option>College of Music (COM)</option>
+                    <option>College of Nursing (CON)</option><option>College of Physical Therapy (CPT)</option><option>College of Respiratory Therapy (CRT)</option>
+                    <option>School of International Relations (SOIR)</option>
+                </select>
+                <button onclick="saveNewUser()" class="w-full bg-[#008000] text-white py-8 rounded-[2rem] font-black uppercase text-2xl shadow-2xl">REGISTER & FINISH</button>
             </div>
         </div>
     </div>
 
-    <div id="edit-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-[10000]">
-        <div class="bg-white p-8 rounded-[2rem] w-96 space-y-4">
-            <h3 class="font-black text-[#008000]">EDIT USER PROFILE</h3>
-            <input type="text" id="edit-id" readonly class="w-full p-2 bg-slate-50 border rounded-lg opacity-50">
-            <input type="text" id="edit-name" class="w-full p-3 border-2 rounded-xl font-bold uppercase">
-            <select id="edit-role" class="w-full p-3 border-2 rounded-xl font-bold">
-                <option>Student</option><option>Teacher</option>
-            </select>
-            <select id="edit-college" class="w-full p-3 border-2 rounded-xl font-bold">
-                <option>Integrated School (IS)</option>
-                <option>College of Informatics and Computing Studies (CICS)</option>
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[10000]">
+        <div class="bg-white p-10 rounded-[2.5rem] w-[450px] space-y-6">
+            <h3 class="font-black text-2xl text-[#008000] italic">EDIT PROFILE</h3>
+            <input type="text" id="edit-name" class="w-full p-4 border-2 rounded-xl font-bold uppercase">
+            <select id="edit-role" class="w-full p-4 border-2 rounded-xl font-bold"><option>Student</option><option>Teacher</option></select>
+            <select id="edit-college" class="w-full p-4 border-2 rounded-xl font-bold text-sm">
+                <option>Integrated School (IS)</option><option>College of Accountancy (COA)</option><option>College of Informatics and Computing Studies (CICS)</option>
                 </select>
-            <div class="flex gap-2">
-                <button onclick="saveEdit()" class="flex-grow bg-[#008000] text-white py-3 rounded-xl font-bold">Save Changes</button>
-                <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="px-4 bg-slate-200 rounded-xl">Back</button>
+            <div class="flex gap-4 pt-4">
+                <button onclick="saveEdit()" class="flex-grow bg-[#008000] text-white py-4 rounded-xl font-black">SAVE</button>
+                <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="px-6 bg-slate-200 rounded-xl font-bold uppercase">Back</button>
             </div>
         </div>
     </div>
-    
-    </body>
+</body>
 </html>
