@@ -30,7 +30,7 @@
         const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
         window.studentsData = {};
         window.logsData = {};
-        let currentProfilePic = "";
+        let selectedProfilePic = "";
 
         onAuthStateChanged(auth, (user) => {
             if (user && ADMIN_EMAILS.includes(user.email)) {
@@ -51,26 +51,16 @@
             updateStatsCards();
         });
 
-        // Profile Pic Handler
-        window.handleImageUpload = (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                currentProfilePic = reader.result;
-                document.getElementById('pic-preview').src = reader.result;
-            };
-            if (file) reader.readAsDataURL(file);
-        };
-
+        // --- CORE FUNCTIONS ---
         window.handleLog = async () => {
-            const id = document.getElementById('studentID').value.trim();
-            const idPattern = /^\d{2}-\d{5}-\d{3}$/;
-            
-            if (!idPattern.test(id)) return alert("ID Format must be 00-00000-000");
-
+            const idInput = document.getElementById('studentID');
+            const id = idInput.value.trim();
             const reason = document.getElementById('visitReason').value;
-            const user = window.studentsData[id];
+            
+            const idPattern = /^\d{2}-\d{5}-\d{3}$/;
+            if (!idPattern.test(id)) return alert("Format must be: 00-00000-000");
 
+            const user = window.studentsData[id];
             if (!user) return document.getElementById('profile-not-found').classList.remove('hidden');
             if (user.isBlocked) return alert("Account BLOCKED.");
 
@@ -83,44 +73,73 @@
 
             await set(ref(db, 'logs/' + logKey), logEntry);
             document.getElementById('log-form-container').classList.add('hidden');
+            document.getElementById('welcome-msg').innerHTML = `
+                <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-lg">
+                <h2 class="text-5xl font-black text-[#008000] italic">Welcome, ${user.name.split(',')[0]}!</h2>
+            `;
             document.getElementById('welcome-msg').classList.remove('hidden');
-            setTimeout(() => location.reload(), 2000);
+            setTimeout(() => location.reload(), 3000);
+        };
+
+        window.handleFileSelect = (e) => {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                selectedProfilePic = reader.result;
+                document.getElementById('img-preview').src = reader.result;
+            };
+            if (file) reader.readAsDataURL(file);
+        };
+
+        window.startRegistration = async () => {
+            const id = document.getElementById('studentID').value.trim();
+            const idPattern = /^\d{2}-\d{5}-\d{3}$/;
+            if (!idPattern.test(id)) return alert("ID format must be 00-00000-000");
+            
+            const result = await signInWithPopup(auth, provider);
+            document.getElementById('reg-id').value = id;
+            document.getElementById('reg-google-email').value = result.user.email;
+            document.getElementById('reg-modal').classList.remove('hidden');
         };
 
         window.saveNewUser = () => {
             const id = document.getElementById('reg-id').value;
             const fullName = document.getElementById('reg-full-name').value.trim();
             const college = document.getElementById('reg-college').value;
-            
-            if(!fullName) return alert("Enter name");
-            if(college === "CHOICE DEPARTMENT") return alert("Please select a department");
+
+            if(!fullName) return alert("Enter Full Name");
+            if(college === "CHOOSE DEPARTMENT") return alert("Please select a department");
 
             const newUser = {
-                name: fullName, 
-                role: document.getElementById('reg-role').value,
-                college: college, 
-                year: document.getElementById('reg-year').value,
+                name: fullName, role: document.getElementById('reg-role').value,
+                college: college, year: document.getElementById('reg-year').value,
                 googleEmail: document.getElementById('reg-google-email').value, 
-                isBlocked: false,
-                profilePic: currentProfilePic
+                profilePic: selectedProfilePic, isBlocked: false
             };
 
             set(ref(db, 'students/' + id), newUser).then(() => { 
-                alert("Registered! You can now Time In."); 
+                alert("Profile Created!"); 
                 document.getElementById('reg-modal').classList.add('hidden');
-                // Auto-fill and scroll to Time In
-                document.getElementById('studentID').value = id;
+                window.handleLog(); 
             });
         };
 
-        // ADMIN: Edit User Function
+        // --- ADMIN PANEL CONTROLS ---
+        window.applyFilters = () => {
+            updateStatsCards();
+            updateUserTable();
+        };
+
         window.editUser = (id) => {
             const user = window.studentsData[id];
-            const newName = prompt("Edit Name:", user.name);
-            if (newName) {
-                update(ref(db, 'students/' + id), { name: newName });
+            const newName = prompt("Update Name:", user.name);
+            const newRole = prompt("Update Role (Student/Teacher):", user.role);
+            if (newName && newRole) {
+                update(ref(db, 'students/' + id), { name: newName, role: newRole });
             }
         };
+
+        window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
 
         function updateUserTable() {
             const list = document.getElementById('user-manage-list');
@@ -128,209 +147,22 @@
             list.innerHTML = "";
             
             Object.entries(window.studentsData).forEach(([id, data]) => {
-                if (search && !(id.includes(search) || data.name.toLowerCase().includes(search))) return;
+                if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)))) return;
 
                 list.innerHTML += `
-                <tr class="border-b text-sm">
-                    <td class="p-3">
-                        <img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover border">
-                    </td>
-                    <td class="p-3 font-bold">${id}</td>
-                    <td class="p-3 uppercase font-black text-green-700">${data.name}</td>
-                    <td class="p-3">${data.role}</td>
-                    <td class="p-3 flex gap-2">
-                        <button onclick="editUser('${id}')" class="text-blue-500 underline">Edit</button>
-                        <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 underline font-bold">${data.isBlocked ? 'Unblock' : 'Block'}</button>
+                <tr class="border-b text-[12px] hover:bg-slate-50 transition-colors">
+                    <td class="p-2"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full object-cover border"></td>
+                    <td class="p-2 font-mono">${id}</td>
+                    <td class="p-2 font-black uppercase text-green-700">${data.name || '---'}</td>
+                    <td class="p-2 text-slate-500">${data.role || '---'}</td>
+                    <td class="p-2 flex gap-2">
+                        <button onclick="editUser('${id}')" class="text-blue-500 hover:underline">Edit</button>
+                        <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 font-bold hover:underline">${data.isBlocked ? 'Unblock' : 'Block'}</button>
                     </td>
                 </tr>`;
             });
         }
-
-        window.exportToExcel = () => {
-            const data = Object.values(window.logsData);
-            if(data.length === 0) return alert("No data to export");
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Library Logs");
-            XLSX.writeFile(wb, "NEU_Library_Logs.xlsx");
-        };
-
-        window.applyFilters = () => {
-            updateStatsCards();
-            updateUserTable();
-        };
 
         function updateStatsCards() {
             const logEntries = Object.entries(window.logsData).map(([key, data]) => ({ firebaseKey: key, ...data }));
             const fDate = document.getElementById('filterDate').value;
-            const fCol = document.getElementById('filterCol').value;
-            const fReason = document.getElementById('filterReason').value;
-
-            const filtered = logEntries.filter(l => {
-                return (fDate ? l.date === fDate : true) &&
-                       (fCol !== "All Colleges" ? l.college === fCol : true) &&
-                       (fReason !== "All Reasons" ? l.reason === fReason : true);
-            });
-
-            document.getElementById('stat-total').innerText = filtered.length;
-            document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
-            document.getElementById('stat-staff').innerText = filtered.filter(l => l.role !== 'Student').length;
-
-            const logList = document.getElementById('log-history-list');
-            logList.innerHTML = "";
-            filtered.reverse().forEach((log) => {
-                const dt = new Date(log.timestamp);
-                const displayTime = isNaN(dt) ? "---" : dt.toLocaleDateString([], {month:'2-digit', day:'2-digit'}) + ", " + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                logList.innerHTML += `
-                <tr class="border-b text-sm hover:bg-slate-50">
-                    <td class="p-3 font-mono whitespace-nowrap">${displayTime}</td>
-                    <td class="p-3 font-black uppercase text-green-800">${log.name}</td>
-                    <td class="p-3">${log.reason}</td>
-                </tr>`;
-            });
-        }
-
-        window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
-        window.showAdminPanel = () => {
-            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-6xl');
-            document.getElementById('attendance-view').classList.add('hidden');
-            document.getElementById('admin-panel').classList.remove('hidden');
-        };
-        window.hideAdminPanel = () => {
-            document.getElementById('main-card').classList.replace('max-w-6xl', 'max-w-xl');
-            document.getElementById('admin-panel').classList.add('hidden');
-            document.getElementById('attendance-view').classList.remove('hidden');
-        };
-        window.loginAdmin = () => signInWithPopup(auth, provider);
-        window.logoutAdmin = () => signOut(auth).then(() => location.reload());
-        window.startRegistration = async () => {
-            const result = await signInWithPopup(auth, provider);
-            document.getElementById('reg-id').value = document.getElementById('studentID').value;
-            document.getElementById('reg-google-email').value = result.user.email;
-            document.getElementById('reg-modal').classList.remove('hidden');
-        };
-        window.closeRegistration = () => {
-            document.getElementById('reg-modal').classList.add('hidden');
-            signOut(auth);
-        };
-    </script>
-</head>
-<body class="bg-slate-100 min-h-screen flex flex-col font-sans">
-    <nav class="bg-[#008000] text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-[#CC0000]">
-        <div class="flex items-center gap-4">
-            <img src="download.png" onerror="this.src='https://via.placeholder.com/60'" class="h-12 bg-white rounded-full p-1">
-            <h1 class="font-black text-xl uppercase italic tracking-tighter">NEU Library System</h1>
-        </div>
-        <div id="admin-display-name" class="text-xs font-mono opacity-80"></div>
-    </nav>
-
-    <main class="container mx-auto p-4 flex flex-col items-center justify-center flex-grow">
-        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-[#008000] p-10 transition-all duration-500">
-            
-            <div id="attendance-view" class="text-center space-y-8">
-                <div id="welcome-msg" class="hidden py-10"><h2 class="text-5xl font-black text-[#008000] italic">Welcome!</h2></div>
-                <div id="log-form-container" class="space-y-6">
-                    <h2 class="text-4xl font-black text-[#008000] uppercase italic tracking-widest">Time In</h2>
-                    <select id="visitReason" class="w-full p-5 bg-slate-50 border-2 rounded-2xl font-bold text-lg">
-                        <option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
-                    </select>
-                    <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-8 border-2 border-slate-100 rounded-[2rem] text-center text-4xl font-mono uppercase bg-slate-50 outline-none focus:border-green-500">
-                    <button onclick="handleLog()" class="w-full bg-[#008000] text-white font-black py-6 rounded-[2rem] text-2xl shadow-lg hover:scale-105 transition-transform">Confirm</button>
-                    <div id="profile-not-found" class="hidden p-4 bg-red-50 rounded-2xl border border-red-200 text-sm text-red-600 font-bold">
-                        No Profile Found. <button onclick="startRegistration()" class="underline text-red-700">Register with Google</button>
-                    </div>
-                    <button onclick="loginAdmin()" class="text-xs text-slate-300 font-bold uppercase mt-4 hover:text-slate-500">🔒 Admin Portal</button>
-                </div>
-            </div>
-
-            <div id="admin-panel" class="hidden space-y-6">
-                <div class="flex justify-between items-center border-b pb-4">
-                    <h2 class="text-3xl font-black text-[#008000] uppercase italic">Admin Dashboard</h2>
-                    <div class="flex gap-3">
-                        <button onclick="exportToExcel()" class="bg-blue-600 text-white px-6 py-2 rounded-xl text-xs font-black shadow-md hover:bg-blue-700">EXPORT EXCEL</button>
-                        <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-6 py-2 rounded-xl text-xs font-black shadow-md hover:bg-red-700">LOGOUT</button>
-                    </div>
-                </div>
-                
-                <div class="space-y-2">
-                    <label class="text-xs font-black text-slate-400 uppercase">Search Records</label>
-                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Type Name or ID..." class="w-full p-4 border-2 rounded-2xl font-bold text-lg shadow-sm outline-none focus:border-green-500">
-                </div>
-                
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white border-2 rounded-[2rem] overflow-hidden shadow-sm">
-                        <div class="bg-slate-50 p-3 text-center border-b font-black text-xs text-slate-400 uppercase">User Management</div>
-                        <div class="max-h-80 overflow-y-auto">
-                            <table class="w-full text-left">
-                                <thead class="bg-slate-50 sticky top-0 text-[11px] font-black uppercase text-slate-400 border-b shadow-sm">
-                                    <tr><th class="p-4">Pic</th><th class="p-4">ID</th><th class="p-4">Name</th><th class="p-4">Role</th><th class="p-4">Act</th></tr>
-                                </thead>
-                                <tbody id="user-manage-list"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="bg-white border-2 rounded-[2rem] overflow-hidden shadow-sm">
-                        <div class="bg-slate-50 p-3 text-center border-b font-black text-xs text-slate-400 uppercase">Attendance History</div>
-                        <div class="max-h-80 overflow-y-auto">
-                            <table class="w-full text-left">
-                                <thead class="bg-slate-50 sticky top-0 text-[11px] font-black uppercase text-slate-400 border-b shadow-sm">
-                                    <tr><th class="p-4">Time</th><th class="p-4">Name</th><th class="p-4">Reason</th></tr>
-                                </thead>
-                                <tbody id="log-history-list"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-[#008000] text-white p-6 rounded-[2rem] shadow-lg text-center"><p class="text-xs font-black opacity-70 uppercase">Total visitors</p><h3 id="stat-total" class="text-4xl font-black">0</h3></div>
-                    <div class="bg-white border-2 p-6 rounded-[2rem] text-center"><p class="text-xs font-black text-slate-400 uppercase">Students</p><h3 id="stat-student" class="text-4xl font-black text-[#008000]">0</h3></div>
-                    <div class="bg-white border-2 p-6 rounded-[2rem] text-center"><p class="text-xs font-black text-slate-400 uppercase">Staff</p><h3 id="stat-staff" class="text-4xl font-black text-[#CC0000]">0</h3></div>
-                </div>
-                <div class="hidden"><input type="date" id="filterDate"><select id="filterCol"><option>All Colleges</option></select><select id="filterReason"><option>All Reasons</option></select></div>
-            </div>
-        </div>
-    </main>
-
-    <div id="reg-modal" class="hidden fixed inset-0 bg-slate-900/90 flex items-center justify-center p-4 z-[9999] backdrop-blur-md overflow-y-auto">
-        <div class="bg-white rounded-[3rem] p-10 max-w-lg w-full border-t-8 border-[#CC0000] shadow-2xl relative my-8">
-            <button onclick="closeRegistration()" class="absolute top-6 right-8 text-slate-300 hover:text-red-500 font-black text-xl">CANCEL</button>
-            <h2 class="text-3xl font-black text-[#008000] mb-8 uppercase italic text-center">Create Profile</h2>
-            
-            <div class="space-y-5">
-                <div class="flex flex-col items-center gap-2">
-                    <img id="pic-preview" src="https://via.placeholder.com/100" class="w-24 h-24 rounded-full object-cover border-4 border-green-100">
-                    <label class="cursor-pointer bg-slate-100 px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-200">
-                        UPLOAD PHOTO
-                        <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-                    </label>
-                </div>
-
-                <div class="space-y-1">
-                    <label class="text-[10px] font-black text-slate-400 ml-4">LIBRARY ID</label>
-                    <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl font-black text-center border-2 text-slate-500 text-xl">
-                </div>
-                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-2xl text-xs text-center border italic">
-                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-5 border-2 rounded-2xl font-bold uppercase text-center text-lg focus:border-[#008000] outline-none">
-                
-                <div class="grid grid-cols-2 gap-3">
-                    <select id="reg-role" class="p-4 border-2 rounded-2xl font-bold text-sm">
-                        <option>Student</option>
-                        <option>Teacher</option>
-                    </select>
-                    <select id="reg-year" class="p-4 border-2 rounded-2xl font-bold text-sm">
-                        <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option>
-                    </select>
-                </div>
-                <select id="reg-college" class="w-full p-4 border-2 rounded-2xl font-bold text-sm">
-                    <option selected disabled>CHOICE DEPARTMENT</option>
-                    <option>Integrated School (IS)</option>
-                    <option>College of Informatics and Computing Studies (CICS)</option>
-                    <option>College of Engineering and Architecture (CEA)</option>
-                    </select>
-                <button onclick="saveNewUser()" class="w-full bg-[#008000] text-white py-6 rounded-[2rem] font-black uppercase text-xl shadow-xl hover:bg-green-700 transition-colors">Register & Finish</button>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
