@@ -1,293 +1,417 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEU Library System</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEU Library System | Admin Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+        // WAG GALAWIN ANG CONFIG - Naka-set sa dati mong config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
+            authDomain: "student-library-system-3e72c.firebaseapp.com",
+            databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
+            projectId: "student-library-system-3e72c",
+            storageBucket: "student-library-system-3e72c.firebasestorage.app",
+            messagingSenderId: "80114803910",
+            appId: "1:80114803910:web:9dd831301ce90972d2a3c7",
+            measurementId: "G-H8YCT6MRYV"
+        };
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' }); // Forcing Google Account Selection
 
-/* FIREBASE CONFIG (DI GINALAW) */
-const firebaseConfig = {
-apiKey: "AIzaSyBqNGAVvvhMPxwR64_x0aqkCvvnRyNwknI",
-authDomain: "student-library-system-3e72c.firebaseapp.com",
-databaseURL: "https://student-library-system-3e72c-default-rtdb.firebaseio.com",
-projectId: "student-library-system-3e72c",
-storageBucket: "student-library-system-3e72c.appspot.com",
-messagingSenderId: "80114803910",
-appId: "1:80114803910:web:9dd831301ce90972d2a3c7"
-};
+        const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
+        window.studentsData = {};
+        window.logsData = [];
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
+        onAuthStateChanged(auth, (user) => {
+            const adminInfo = document.getElementById('admin-info');
+            if (user && ADMIN_EMAILS.includes(user.email)) {
+                adminInfo.innerText = `Logged in as: ${user.email}`;
+                showAdminPanel();
+            } else {
+                hideAdminPanel();
+            }
+        });
 
-const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph","jayvanne.pingal@neu.edu.ph"];
+        onValue(ref(db, 'students'), (snapshot) => {
+            window.studentsData = snapshot.val() || {};
+            updateUserTable();
+        });
 
-window.studentsData = {};
-window.logsData = [];
+        onValue(ref(db, 'logs'), (snapshot) => {
+            const val = snapshot.val();
+            window.logsData = val ? Object.values(val) : [];
+            updateStatsCards();
+        });
 
-const isValidID = id => /^\d{2}-\d{5}-\d{3}$/.test(id);
+        // ID FORMAT: 00-00000-000
+        const isValidID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
-/* AUTH */
-onAuthStateChanged(auth,(user)=>{
-if(user && ADMIN_EMAILS.includes(user.email)){
-document.getElementById("adminPanel").classList.remove("hidden");
-}else{
-document.getElementById("adminPanel").classList.add("hidden");
-}
-});
+        window.handleLog = async () => {
+            const idInput = document.getElementById('studentID');
+            const id = idInput.value.trim();
+            const reason = document.getElementById('visitReason').value;
+            const container = document.getElementById('log-container');
+            const welcomeMsg = document.getElementById('welcome-msg');
+            
+            if(!isValidID(id)) {
+                alert("Maling ID Format! Gamitin ang: 00-00000-000");
+                return;
+            }
 
-/* DATA */
-onValue(ref(db,'students'),snap=>{
-window.studentsData = snap.val() || {};
-updateTable();
-});
+            const user = window.studentsData[id];
 
-onValue(ref(db,'logs'),snap=>{
-window.logsData = snap.val()?Object.values(snap.val()):[];
-updateStats();
-renderChart();
-});
+            if (!user) {
+                // Custom Modal logic based on your request
+                if(confirm("Profile not found. Please Sign-in with Google to Register.")) {
+                    try {
+                        const result = await signInWithPopup(auth, provider);
+                        const googleEmail = result.user.email;
 
-/* TIME IN */
-async function handleLog(){
-const id=document.getElementById("studentID").value.trim();
-const reason=document.getElementById("visitReason").value;
+                        // Check if Google Account already exists
+                        const exists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
+                        if(exists) {
+                            alert("Account is already exist");
+                            await signOut(auth);
+                            return;
+                        }
 
-if(!isValidID(id)) return alert("Use format: 00-00000-000");
+                        document.getElementById('reg-id').value = id;
+                        document.getElementById('reg-google-email').value = googleEmail;
+                        document.getElementById('reg-modal').classList.remove('hidden');
+                    } catch (e) { alert("Registration Cancelled"); }
+                }
+                return;
+            }
 
-const user=window.studentsData[id];
+            if(user.isBlocked) {
+                alert("This account is BLOCKED. Please contact the administrator.");
+                return;
+            }
 
-if(!user){
-showMsg("Profile not found. Please Sign-in with Google to Register.");
-try{
-const res=await signInWithPopup(auth,provider);
+            // SUCCESSFUL LOG
+            const now = new Date();
+            const logEntry = {
+                id: id,
+                name: user.name,
+                role: user.role,
+                college: user.college,
+                reason: reason,
+                timestamp: now.toLocaleTimeString(),
+                date: now.toLocaleDateString('en-CA'),
+                fullDate: now.toLocaleString()
+            };
 
-const exist=Object.values(window.studentsData)
-.find(u=>u.email===res.user.email);
+            push(ref(db, 'logs'), logEntry);
+            
+            // Welcome UI Logic
+            container.classList.add('hidden');
+            welcomeMsg.classList.remove('hidden');
+            idInput.value = "";
 
-if(exist){ showMsg("Account is already exist"); return; }
+            setTimeout(() => {
+                welcomeMsg.classList.add('hidden');
+                container.classList.remove('hidden');
+            }, 3000);
+        };
 
-document.getElementById("reg-id").value=id;
-document.getElementById("reg-email").value=res.user.email;
-document.getElementById("regModal").classList.remove("hidden");
+        window.saveNewUser = () => {
+            const id = document.getElementById('reg-id').value;
+            const file = document.getElementById('reg-photo').files[0];
+            const reader = new FileReader();
 
-}catch(e){ alert("Google login required"); }
-return;
-}
+            const saveData = (photoUrl = "https://via.placeholder.com/150") => {
+                const newUser = {
+                    name: document.getElementById('reg-full-name').value,
+                    role: document.getElementById('reg-role').value,
+                    college: document.getElementById('reg-college').value,
+                    year: document.getElementById('reg-year').value,
+                    googleEmail: document.getElementById('reg-google-email').value,
+                    photo: photoUrl,
+                    isBlocked: false
+                };
+                set(ref(db, 'students/' + id), newUser).then(() => {
+                    alert("Profile Created! Please Time In now.");
+                    document.getElementById('reg-modal').classList.add('hidden');
+                });
+            };
 
-if(user.blocked) return alert("Blocked ka ng admin");
+            if (file) {
+                reader.onloadend = () => saveData(reader.result);
+                reader.readAsDataURL(file);
+            } else {
+                saveData();
+            }
+        };
 
-const now=new Date();
+        // ADMIN FUNCTIONS
+        window.toggleBlock = (id, status) => {
+            update(ref(db, 'students/' + id), { isBlocked: !status });
+        };
 
-/* ✅ FIXED (NO UNDEFINED ERROR) */
-push(ref(db,'logs'),{
-id,
-name:user.name || "No Name",
-email:user.email || "No Email",
-college:user.college || "N/A",
-year:user.year || "N/A",
-reason,
-time:now.toLocaleTimeString(),
-date:now.toLocaleDateString(),
-fullDate:now.toISOString()
-});
+        window.editUser = (id) => {
+            const user = window.studentsData[id];
+            const newYear = prompt("Enter new Year Level (1st-4th):", user.year);
+            const newCollege = prompt("Enter new College Code (e.g., CICS):", user.college);
+            if(newYear && newCollege) {
+                update(ref(db, 'students/' + id), { year: newYear, college: newCollege });
+            }
+        };
 
-showMsg("Welcome to Library");
-document.getElementById("studentID").value="";
-}
+        window.loginAdmin = async () => {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                if (!ADMIN_EMAILS.includes(result.user.email)) {
+                    alert("Access Denied.");
+                    await signOut(auth);
+                }
+            } catch (e) { alert("Login Failed"); }
+        };
 
-/* MESSAGE */
-function showMsg(msg){
-const box=document.getElementById("msg");
-box.innerText=msg;
-box.classList.remove("hidden");
-setTimeout(()=>box.classList.add("hidden"),3000);
-}
+        window.logoutAdmin = () => signOut(auth).then(() => location.reload());
 
-/* SIGNUP */
-function saveUser(){
-const id=document.getElementById("reg-id").value;
+        function updateStatsCards() {
+            const filterDate = document.getElementById('filterDate').value;
+            let filtered = window.logsData;
+            if(filterDate) filtered = filtered.filter(l => l.date === filterDate);
 
-set(ref(db,'students/'+id),{
-name:document.getElementById("reg-name").value,
-email:document.getElementById("reg-email").value || "No Email",
-college:document.getElementById("reg-college").value,
-year:document.getElementById("reg-year").value,
-blocked:false
-}).then(()=>{
-document.getElementById("regModal").classList.add("hidden");
-handleLog();
-});
-}
+            document.getElementById('stat-total').innerText = filtered.length;
+            document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
+            document.getElementById('stat-staff').innerText = filtered.filter(l => l.role !== 'Student').length;
+        }
 
-/* ADMIN */
-function loginAdmin(){ signInWithPopup(auth,provider); }
-function logoutAdmin(){ signOut(auth); }
+        function showAdminPanel() {
+            document.getElementById('main-card').classList.replace('max-w-xl', 'max-w-7xl');
+            document.getElementById('attendance-view').classList.add('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+            updateStatsCards();
+        }
 
-function toggleBlock(id,status){
-update(ref(db,'students/'+id),{blocked:!status});
-}
+        function hideAdminPanel() {
+            document.getElementById('main-card').classList.replace('max-w-7xl', 'max-w-xl');
+            document.getElementById('admin-panel').classList.add('hidden');
+            document.getElementById('attendance-view').classList.remove('hidden');
+        }
 
-/* STATS */
-function updateStats(){
-document.getElementById("total").innerText=window.logsData.length;
-}
+        function updateUserTable() {
+            const list = document.getElementById('user-manage-list');
+            list.innerHTML = "";
+            Object.entries(window.studentsData).forEach(([id, data]) => {
+                list.innerHTML += `<tr class="border-b text-xs md:text-sm">
+                    <td class="p-3 font-bold">${id}</td>
+                    <td class="p-3 flex items-center gap-2">
+                        <img src="${data.photo}" class="w-8 h-8 rounded-full border">
+                        ${data.name}
+                    </td>
+                    <td class="p-3">${data.college}</td>
+                    <td class="p-3">${data.year}</td>
+                    <td class="p-3 uppercase font-bold">${data.role}</td>
+                    <td class="p-3">
+                        <button onclick="editUser('${id}')" class="text-blue-600 mr-2">Edit</button>
+                        <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="${data.isBlocked ? 'text-green-600' : 'text-red-600'} font-bold">
+                            ${data.isBlocked ? 'Unblock' : 'Block'}
+                        </button>
+                    </td>
+                </tr>`;
+            });
 
-/* TABLE */
-function updateTable(){
-const list=document.getElementById("table");
-list.innerHTML="";
-Object.entries(window.studentsData).forEach(([id,data])=>{
-list.innerHTML+=`
-<tr class="border-b">
-<td>${id}</td>
-<td>${data.name}</td>
-<td>${data.email || "No Email"}</td>
-<td>${data.college}</td>
-<td>${data.year}</td>
-<td>${data.blocked?"BLOCKED":"ACTIVE"}</td>
-<td>
-<button onclick="toggleBlock('${id}',${data.blocked})"
-class="bg-red-500 text-white px-2 rounded">
-${data.blocked?"Unblock":"Block"}
-</button>
-</td>
-</tr>`;
-});
-}
+            // Update Logs Table in Admin
+            const logList = document.getElementById('log-history-list');
+            logList.innerHTML = "";
+            [...window.logsData].reverse().slice(0, 50).forEach(log => {
+                logList.innerHTML += `<tr class="border-b text-[10px] md:text-xs">
+                    <td class="p-2">${log.fullDate}</td>
+                    <td class="p-2 font-bold">${log.id}</td>
+                    <td class="p-2">${log.name}</td>
+                    <td class="p-2">${log.reason}</td>
+                </tr>`;
+            });
+        }
+    </script>
 
-/* CHART */
-let chart;
-function renderChart(){
-const ctx=document.getElementById("chart").getContext("2d");
-
-const counts={};
-window.logsData.forEach(l=>{
-counts[l.date]=(counts[l.date]||0)+1;
-});
-
-const labels=Object.keys(counts);
-const data=Object.values(counts);
-
-if(chart) chart.destroy();
-
-chart=new Chart(ctx,{
-type:'bar',
-data:{labels,datasets:[{label:'Visitors',data}]}
-});
-}
-
-/* EXPORT */
-function exportExcel(){
-const ws=XLSX.utils.json_to_sheet(window.logsData);
-const wb=XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb,ws,"Logs");
-XLSX.writeFile(wb,"LibraryLogs.xlsx");
-}
-
-/* FIX BUTTONS */
-window.handleLog = handleLog;
-window.saveUser = saveUser;
-window.loginAdmin = loginAdmin;
-window.logoutAdmin = logoutAdmin;
-window.toggleBlock = toggleBlock;
-window.exportExcel = exportExcel;
-
-</script>
+    <style>
+        :root { --neu-green: #008000; --neu-red: #CC0000; }
+        .bg-neu-green { background-color: var(--neu-green); }
+        .text-neu-green { color: var(--neu-green); }
+        .bg-neu-red { background-color: var(--neu-red); }
+        #main-card { transition: all 0.4s ease; }
+    </style>
 </head>
+<body class="bg-slate-100 min-h-screen font-sans flex flex-col">
 
-<body class="bg-green-100 p-6">
+    <nav class="bg-neu-green text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-neu-red">
+        <div class="flex items-center gap-4">
+            <img src="download.png" alt="Logo" class="h-16 w-16 bg-white rounded-full p-1 shadow-md">
+            <div>
+                <h1 class="font-black text-xl uppercase leading-none">New Era University</h1>
+                <p class="text-[10px] uppercase font-bold opacity-80 tracking-widest">Library Management System</p>
+            </div>
+        </div>
+        <div id="admin-info" class="text-[10px] font-mono opacity-70"></div>
+    </nav>
 
-<div class="bg-white p-6 rounded-xl max-w-md mx-auto shadow">
-<img src="download.png" class="w-16 mx-auto mb-3">
+    <main class="container mx-auto p-4 flex flex-col items-center justify-center flex-grow">
+        
+        <div id="main-card" class="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl border-t-8 border-neu-green p-8 text-center">
+            
+            <div id="attendance-view">
+                <div id="welcome-msg" class="hidden py-20 animate-bounce">
+                    <h2 class="text-6xl font-black text-neu-green italic">Welcome to Library!</h2>
+                    <p class="text-slate-400 font-bold uppercase tracking-widest mt-4">Logging your visit...</p>
+                </div>
 
-<div id="msg" class="hidden text-green-600 text-center"></div>
+                <div id="log-container" class="space-y-6">
+                    <h2 class="text-4xl font-black text-neu-green uppercase italic tracking-tighter">Time In</h2>
+                    
+                    <div class="space-y-4 text-left">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Reason for Visiting</label>
+                        <select id="visitReason" class="w-full p-4 bg-slate-50 border-2 rounded-2xl font-bold text-sm">
+                            <optgroup label="Reading">
+                                <option>Leisure or assigned reading</option>
+                            </optgroup>
+                            <optgroup label="Research">
+                                <option>Academic research & journals</option>
+                            </optgroup>
+                            <optgroup label="Computer">
+                                <option>IT facilities & internet</option>
+                            </optgroup>
+                            <optgroup label="Assignments">
+                                <option>Study & homework</option>
+                            </optgroup>
+                            <optgroup label="Books">
+                                <option>Borrowing or returning items</option>
+                            </optgroup>
+                        </select>
 
-<select id="visitReason" class="w-full p-2 border mb-2">
-<option>Reading</option>
-<option>Research</option>
-<option>Computer</option>
-<option>Assignments</option>
-<option>Books</option>
-</select>
+                        <input type="text" id="studentID" placeholder="00-00000-000" maxlength="12"
+                            class="w-full p-6 border-2 border-slate-100 rounded-[2rem] text-center text-3xl font-mono uppercase shadow-inner bg-slate-50">
+                        
+                        <button onclick="handleLog()" class="w-full bg-neu-green hover:bg-green-800 text-white font-black py-6 rounded-[2rem] text-2xl uppercase italic shadow-lg transition-transform active:scale-95">
+                            Confirm Attendance
+                        </button>
+                    </div>
 
-<input id="studentID" placeholder="00-00000-000"
-class="w-full p-3 border mb-2 text-center">
+                    <div class="pt-6 border-t">
+                        <button onclick="loginAdmin()" class="text-slate-400 hover:text-neu-green font-bold text-xs uppercase tracking-widest">
+                            🔒 Admin Login
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-<button onclick="handleLog()" class="w-full bg-green-600 text-white p-3">
-TIME IN
-</button>
+            <div id="admin-panel" class="hidden text-left w-full space-y-6">
+                <div class="flex justify-between items-center border-b pb-4">
+                    <h2 class="text-3xl font-black text-neu-green uppercase italic">Admin Dashboard</h2>
+                    <button onclick="logoutAdmin()" class="bg-neu-red text-white px-6 py-2 rounded-xl font-bold text-xs uppercase">Logout</button>
+                </div>
 
-<button onclick="loginAdmin()" class="text-sm mt-2">
-Admin Login
-</button>
-</div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-neu-green text-white p-6 rounded-3xl shadow-lg">
+                        <p class="text-xs font-bold uppercase opacity-80">Total Visitors</p>
+                        <h3 id="stat-total" class="text-4xl font-black">0</h3>
+                    </div>
+                    <div class="bg-white border-2 border-neu-green p-6 rounded-3xl">
+                        <p class="text-xs font-bold uppercase text-slate-400">Students</p>
+                        <h3 id="stat-student" class="text-4xl font-black text-neu-green">0</h3>
+                    </div>
+                    <div class="bg-white border-2 border-neu-red p-6 rounded-3xl">
+                        <p class="text-xs font-bold uppercase text-slate-400">Faculty / Staff</p>
+                        <h3 id="stat-staff" class="text-4xl font-black text-neu-red">0</h3>
+                    </div>
+                </div>
 
-<div id="adminPanel" class="hidden mt-10 max-w-4xl mx-auto bg-white p-6 rounded-xl shadow">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-3xl border overflow-hidden shadow-sm">
+                        <div class="p-4 bg-slate-50 border-b font-bold text-xs uppercase">User Management</div>
+                        <div class="overflow-x-auto max-h-96">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-100 sticky top-0">
+                                    <tr class="text-[10px] uppercase"><th class="p-3">ID</th><th class="p-3">Name</th><th class="p-3">College</th><th class="p-3">Year</th><th class="p-3">Role</th><th class="p-3">Action</th></tr>
+                                </thead>
+                                <tbody id="user-manage-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-3xl border overflow-hidden shadow-sm">
+                        <div class="p-4 bg-slate-50 border-b flex justify-between items-center">
+                            <span class="font-bold text-xs uppercase">Recent Logs</span>
+                            <input type="date" id="filterDate" onchange="updateStatsCards()" class="text-xs border p-1 rounded">
+                        </div>
+                        <div class="overflow-x-auto max-h-96">
+                            <table class="w-full text-left">
+                                <thead class="bg-slate-100 sticky top-0">
+                                    <tr class="text-[10px] uppercase"><th class="p-2">Date/Time</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Reason</th></tr>
+                                </thead>
+                                <tbody id="log-history-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-<h2 class="text-xl font-bold">Admin Dashboard</h2>
+    <div id="reg-modal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-[3rem] p-8 max-w-lg w-full border-t-8 border-neu-red overflow-y-auto max-h-[90vh]">
+            <h2 class="text-2xl font-black text-neu-green mb-6 uppercase italic">Visitor Sign-Up</h2>
+            <div class="space-y-4">
+                <div class="flex flex-col items-center mb-4">
+                    <label class="text-[10px] font-black uppercase mb-2">Profile Picture</label>
+                    <input type="file" id="reg-photo" accept="image/*" class="text-xs">
+                </div>
+                
+                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl font-bold text-center border">
+                <input type="text" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-xl text-xs border">
+                
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold uppercase ml-2 text-slate-400">Full Name</label>
+                    <input type="text" id="reg-full-name" placeholder="Enter Full Name" class="w-full p-4 border rounded-2xl font-bold shadow-sm">
+                </div>
 
-<p>Total Visitors: <span id="total">0</span></p>
+                <div class="grid grid-cols-2 gap-3">
+                    <select id="reg-role" class="p-4 border rounded-2xl font-bold text-sm">
+                        <option>Student</option><option>Teacher</option><option>Staff</option>
+                    </select>
+                    <select id="reg-year" class="p-4 border rounded-2xl font-bold text-sm">
+                        <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option>
+                    </select>
+                </div>
 
-<button onclick="exportExcel()" class="bg-blue-500 text-white px-3 py-1 mt-2">
-Export Excel
-</button>
+                <select id="reg-college" class="w-full p-4 border rounded-2xl font-bold text-sm">
+                    <option>Integrated School (IS)</option>
+                    <option>College of Accountancy (COA)</option>
+                    <option>College of Agriculture (CAG)</option>
+                    <option>College of Arts and Sciences (CAS)</option>
+                    <option>College of Business Administration (CBA)</option>
+                    <option>College of Communication (COC)</option>
+                    <option>College of Informatics and Computing Studies (CICS)</option>
+                    <option>College of Criminology (CCR)</option>
+                    <option>College of Education (CED)</option>
+                    <option>College of Engineering and Architecture (CEA)</option>
+                    <option>College of Medical Technology (CMT)</option>
+                    <option>College of Midwifery (CMW)</option>
+                    <option>College of Music (COM)</option>
+                    <option>College of Nursing (CON)</option>
+                    <option>College of Physical Therapy (CPT)</option>
+                    <option>College of Respiratory Therapy (CRT)</option>
+                    <option>School of International Relations (SOIR)</option>
+                </select>
 
-<canvas id="chart" class="mt-4"></canvas>
-
-<table class="w-full mt-4 border">
-<thead>
-<tr>
-<th>ID</th><th>Name</th><th>Email</th><th>College</th><th>Year</th><th>Status</th><th>Action</th>
-</tr>
-</thead>
-<tbody id="table"></tbody>
-</table>
-
-<button onclick="logoutAdmin()" class="bg-red-500 text-white p-2 mt-4">
-Logout
-</button>
-
-</div>
-
-<div id="regModal" class="hidden fixed inset-0 bg-black/70 flex justify-center items-center">
-<div class="bg-white p-6 rounded">
-
-<input id="reg-id" readonly class="border p-2 mb-2 w-full">
-<input id="reg-email" readonly class="border p-2 mb-2 w-full">
-
-<input id="reg-name" placeholder="Full Name" class="border p-2 mb-2 w-full">
-
-<select id="reg-college" class="border p-2 mb-2 w-full">
-<option>College of Informatics and Computing Studies (CICS)</option>
-<option>College of Engineering and Architecture (CEA)</option>
-<option>College of Nursing (CON)</option>
-<option>College of Arts and Sciences (CAS)</option>
-</select>
-
-<select id="reg-year" class="border p-2 mb-2 w-full">
-<option>1st Year</option>
-<option>2nd Year</option>
-<option>3rd Year</option>
-<option>4th Year</option>
-</select>
-
-<button onclick="saveUser()" class="bg-green-600 text-white w-full p-2">
-Save
-</button>
-
-</div>
-</div>
-
+                <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-5 rounded-2xl font-black uppercase italic shadow-lg mt-4">Create Account</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
