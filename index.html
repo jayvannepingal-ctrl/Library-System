@@ -27,6 +27,7 @@
         const db = getDatabase(app);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
+        // Force account selection everytime
         provider.setCustomParameters({ prompt: 'select_account' });
 
         const ADMIN_EMAILS = ["jcesperanza@neu.edu.ph", "jayvanne.pingal@neu.edu.ph"];
@@ -53,13 +54,14 @@
             updateStatsCards();
         });
 
+        // 00-00000-000 Format
         const isValidID = (id) => /^\d{2}-\d{5}-\d{3}$/.test(id);
 
         window.handleLog = async () => {
             const idInput = document.getElementById('studentID');
             const id = idInput.value.trim();
             const reason = document.getElementById('visitReason').value;
-            const logForm = document.getElementById('log-form-container');
+            const container = document.getElementById('log-form-container');
             const welcomeMsg = document.getElementById('welcome-msg');
             
             if(!isValidID(id)) {
@@ -74,13 +76,15 @@
                     try {
                         const result = await signInWithPopup(auth, provider);
                         const googleEmail = result.user.email;
-                        const exists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
                         
+                        // Check if Google Email already registered to another ID
+                        const exists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
                         if(exists) {
-                            alert("Account already exists with a different ID.");
+                            alert("Account is already exist");
                             await signOut(auth);
                             return;
                         }
+
                         document.getElementById('reg-id').value = id;
                         document.getElementById('reg-google-email').value = googleEmail;
                         document.getElementById('reg-modal').classList.remove('hidden');
@@ -94,35 +98,30 @@
                 return;
             }
 
-            try {
-                const now = new Date();
-                // FIX: Nilagyan ng || "" para hindi mag-error ang Firebase kung may kulang na info sa student record
-                const logEntry = {
-                    id: id,
-                    name: user.name || "Unknown",
-                    role: user.role || "Student",
-                    college: user.college || "N/A",
-                    reason: reason,
-                    timestamp: now.toLocaleTimeString(),
-                    date: now.toLocaleDateString('en-CA'),
-                    fullDate: now.toLocaleString()
-                };
+            // SUCCESSFUL LOG
+            const now = new Date();
+            const logEntry = {
+                id: id,
+                name: user.name,
+                role: user.role,
+                college: user.college,
+                reason: reason,
+                timestamp: now.toLocaleTimeString(),
+                date: now.toLocaleDateString('en-CA'),
+                fullDate: now.toLocaleString()
+            };
 
-                await push(ref(db, 'logs'), logEntry);
-                
-                // UI LOGIC
-                logForm.classList.add('hidden');
-                welcomeMsg.classList.remove('hidden');
-                idInput.value = "";
+            await push(ref(db, 'logs'), logEntry);
+            
+            // Welcome Screen logic
+            container.classList.add('hidden');
+            welcomeMsg.classList.remove('hidden');
+            idInput.value = "";
 
-                setTimeout(() => {
-                    welcomeMsg.classList.add('hidden');
-                    logForm.classList.remove('hidden');
-                }, 3000);
-            } catch (err) {
-                console.error(err);
-                alert("Error saving log: " + err.message);
-            }
+            setTimeout(() => {
+                welcomeMsg.classList.add('hidden');
+                container.classList.remove('hidden');
+            }, 3000);
         };
 
         window.saveNewUser = () => {
@@ -324,15 +323,24 @@
                 <input type="text" id="reg-full-name" placeholder="Type your Full Name" class="w-full p-4 border-2 border-neu-green/20 rounded-2xl font-bold">
 
                 <div class="grid grid-cols-2 gap-2">
-                    <select id="reg-role" class="p-3 border rounded-xl font-bold text-xs"><option>Student</option><option>Teacher</option><option>Admin</option></select>
-                    <select id="reg-year" class="p-3 border rounded-xl font-bold text-xs"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option></select>
+                    <select id="reg-role" class="p-3 border rounded-xl font-bold text-xs">
+                        <option>Student</option><option>Teacher</option><option>Admin</option>
+                    </select>
+                    <select id="reg-year" class="p-3 border rounded-xl font-bold text-xs">
+                        <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>N/A</option>
+                    </select>
                 </div>
 
                 <select id="reg-college" class="w-full p-3 border rounded-xl font-bold text-xs">
-                    <option>Integrated School (IS)</option><option>College of Informatics and Computing Studies (CICS)</option>
-                    <option>College of Accountancy (COA)</option><option>College of Engineering and Architecture (CEA)</option>
-                    <option>College of Arts and Sciences (CAS)</option><option>College of Business Administration (CBA)</option>
-                    <option>College of Education (CED)</option><option>College of Nursing (CON)</option>
+                    <option>Integrated School (IS)</option><option>College of Accountancy (COA)</option>
+                    <option>College of Agriculture (CAG)</option><option>College of Arts and Sciences (CAS)</option>
+                    <option>College of Business Administration (CBA)</option><option>College of Communication (COC)</option>
+                    <option>College of Informatics and Computing Studies (CICS)</option><option>College of Criminology (CCR)</option>
+                    <option>College of Education (CED)</option><option>College of Engineering and Architecture (CEA)</option>
+                    <option>College of Medical Technology (CMT)</option><option>College of Midwifery (CMW)</option>
+                    <option>College of Music (COM)</option><option>College of Nursing (CON)</option>
+                    <option>College of Physical Therapy (CPT)</option><option>College of Respiratory Therapy (CRT)</option>
+                    <option>School of International Relations (SOIR)</option>
                 </select>
 
                 <button onclick="saveNewUser()" class="w-full bg-neu-green text-white py-4 rounded-2xl font-black uppercase italic shadow-lg">Register & Finish</button>
