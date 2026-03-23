@@ -3,130 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEU Library System | Grand Edition</title>
+    <title>NEU Library System | Enhanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
-        .neu-gradient { background: linear-gradient(135deg, #008000 0%, #004d00 100%); }
-        .custom-scroll::-webkit-scrollbar { width: 8px; }
+        /* Pinalaki ang base font size */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; font-size: 1.1rem; }
+        .neu-gradient { background: linear-gradient(135deg, #008000 0%, #006400 100%); }
+        .custom-scroll::-webkit-scrollbar { width: 10px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #008000; border-radius: 10px; }
-        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
-        .logo-glow { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5)); }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <header class="neu-gradient text-white py-6 px-10 shadow-2xl flex justify-between items-center sticky top-0 z-50">
+    <header class="neu-gradient text-white p-6 shadow-lg flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-6">
-            <div class="bg-white p-2 rounded-2xl shadow-inner logo-glow">
-                <img src="download.png" alt="NEU Logo" class="w-20 h-20 object-contain">
+            <div class="bg-white p-2 rounded-full shadow-md">
+                <img src="download.png" alt="NEU Logo" class="w-16 h-16 object-contain">
             </div>
-            <div>
-                <h1 class="font-900 italic tracking-tighter text-4xl leading-none">NEU LIBRARY</h1>
-                <p class="text-xs font-bold tracking-[0.3em] opacity-70 uppercase">University Gateway</p>
-            </div>
+            <h1 class="font-black italic tracking-tighter text-4xl">NEU LIBRARY</h1>
         </div>
-        <div id="admin-display-name" class="text-sm font-black opacity-90 bg-black/20 px-4 py-2 rounded-full"></div>
+        <div id="admin-display-name" class="text-xs font-bold opacity-80 bg-black/20 px-4 py-2 rounded-full"></div>
     </header>
 
-    <main class="flex-grow flex items-center justify-center p-6 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
-        <div id="main-card" class="bg-white w-full max-w-2xl rounded-[3.5rem] shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] p-12 transition-all duration-700 border-t-[12px] border-[#008000]">
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div id="main-card" class="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl p-12 transition-all duration-500 border-t-[12px] border-[#008000]">
             
             <div id="attendance-view" class="space-y-10">
                 <div id="log-form-container" class="space-y-10">
-                    <div class="text-center space-y-2">
-                        <h2 class="text-6xl font-black text-[#008000] italic uppercase tracking-tighter">Time In</h2>
-                        <div class="h-2 w-24 bg-orange-400 mx-auto rounded-full"></div>
+                    <div class="text-center">
+                        <h2 class="text-6xl font-black text-[#008000] italic uppercase tracking-widest">Time In</h2>
                     </div>
                     
                     <div class="space-y-6">
-                        <div class="relative">
-                            <label class="absolute -top-3 left-6 bg-white px-2 text-xs font-black text-green-700 uppercase">Reason for Visit</label>
-                            <select id="visitReason" class="w-full p-6 border-4 border-slate-100 rounded-3xl font-bold text-2xl text-slate-700 focus:border-[#008000] outline-none appearance-none bg-slate-50 transition-all">
-                                <option>Reading</option>
-                                <option>Research</option>
-                                <option>Computer Use</option>
-                                <option>Assignments</option>
-                                <option>Books/Borrowing</option>
-                            </select>
-                        </div>
-
-                        <div class="relative">
-                            <label class="absolute -top-3 left-6 bg-white px-2 text-xs font-black text-green-700 uppercase">Student / Faculty ID</label>
-                            <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-8 border-4 border-slate-100 rounded-3xl text-center text-4xl font-black tracking-[0.2em] focus:border-[#008000] outline-none shadow-inner placeholder:opacity-20">
-                        </div>
-
-                        <button onclick="handleLog()" class="w-full neu-gradient text-white py-8 rounded-[2rem] font-black text-3xl shadow-[0_15px_30px_-5px_rgba(0,128,0,0.4)] hover:scale-[1.03] active:scale-95 transition-all uppercase tracking-widest">
-                            Confirm Time In
-                        </button>
+                        <select id="visitReason" class="w-full p-6 border-4 rounded-[2rem] font-bold text-2xl text-slate-700 focus:border-[#008000] outline-none appearance-none bg-slate-50">
+                            <option>Reading</option>
+                            <option>Research</option>
+                            <option>Computer Use</option>
+                            <option>Assignments</option>
+                            <option>Books/Borrowing</option>
+                        </select>
+                        <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-8 border-4 rounded-[2rem] text-center text-4xl font-black tracking-widest focus:border-[#008000] outline-none">
+                        
+                        <button onclick="handleLog()" class="w-full neu-gradient text-white py-8 rounded-[2rem] font-black text-3xl shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">TIME IN</button>
                     </div>
 
-                    <div id="profile-not-found" class="hidden text-center p-6 bg-orange-50 rounded-[2rem] border-4 border-orange-200 animate-pulse">
-                        <p class="font-black text-orange-700 text-lg mb-3">ID NOT RECOGNIZED</p>
-                        <button onclick="startRegistration()" class="text-md font-black text-[#008000] underline uppercase hover:text-orange-600 transition-colors">Register via Google Account</button>
+                    <div id="profile-not-found" class="hidden text-center p-6 bg-orange-50 rounded-[2rem] border-4 border-orange-200">
+                        <p class="font-bold text-orange-700 text-lg mb-2">Student ID not found in the system.</p>
+                        <button onclick="startRegistration()" class="text-md font-black text-[#008000] underline uppercase tracking-tighter">Register with Google</button>
                     </div>
 
-                    <div class="text-center pt-6">
-                        <button onclick="loginAdmin()" class="text-xs font-black text-slate-300 hover:text-[#008000] transition-colors uppercase flex items-center justify-center gap-2 mx-auto tracking-widest">
-                            <span class="text-lg">🔒</span> Librarian Access
+                    <div class="text-center pt-4">
+                        <button onclick="loginAdmin()" class="text-sm font-bold text-slate-400 hover:text-[#008000] transition-colors uppercase flex items-center justify-center gap-2 mx-auto">
+                            👤 Admin Access
                         </button>
                     </div>
                 </div>
 
-                <div id="welcome-msg" class="hidden text-center space-y-6 py-10"></div>
+                <div id="welcome-msg" class="hidden text-center animate-bounce"></div>
             </div>
 
-            <div id="admin-panel" class="hidden space-y-8 w-full">
-                <div class="flex justify-between items-end border-b-4 border-slate-100 pb-6">
-                    <div>
-                        <h2 class="text-5xl font-black text-[#008000] uppercase italic leading-none">Dashboard</h2>
-                        <p class="text-slate-400 font-bold uppercase tracking-widest text-xs mt-2">Library Management System</p>
+            <div id="admin-panel" class="hidden space-y-6 w-full">
+                <div class="flex justify-between items-center border-b-4 pb-6">
+                    <h2 class="text-4xl font-black text-[#008000] uppercase italic">Admin Dashboard</h2>
+                    <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-8 py-3 rounded-2xl text-sm font-bold shadow-md hover:bg-red-700 transition-colors">LOGOUT</button>
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-[2.5rem] border-4 space-y-4 shadow-inner">
+                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name, ID, or Email..." class="w-full p-5 border-2 rounded-2xl text-xl font-bold focus:border-green-500 outline-none">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <input type="date" id="filterDate" onchange="applyFilters()" class="p-3 border rounded-xl font-bold">
+                        <select id="filterCol" onchange="applyFilters()" class="p-3 border rounded-xl font-bold">
+                            <option>All Colleges</option>
+                            <option>Integrated School (IS)</option>
+                            <option>CICS</option><option>CEA</option><option>CAS</option>
+                            <option>COA</option><option>CAG</option><option>CBA</option>
+                            <option>COC</option><option>CCR</option><option>CED</option>
+                            <option>CMT</option><option>CMW</option><option>COM</option>
+                            <option>CON</option><option>CPT</option><option>CRT</option>
+                            <option>SOIR</option>
+                        </select>
+                        <select id="filterReason" onchange="applyFilters()" class="p-3 border rounded-xl font-bold">
+                            <option>All Reasons</option><option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
+                        </select>
                     </div>
-                    <button onclick="logoutAdmin()" class="bg-red-600 text-white px-8 py-3 rounded-2xl text-sm font-black shadow-lg hover:bg-black transition-all">EXIT SYSTEM</button>
                 </div>
 
                 <div class="grid grid-cols-3 gap-6">
-                    <div class="neu-gradient text-white p-8 rounded-[2.5rem] shadow-xl relative overflow-hidden">
-                        <p class="text-xs font-bold opacity-70 uppercase mb-1">Daily Visits</p>
-                        <h3 id="stat-total" class="text-5xl font-black">0</h3>
-                        <div class="absolute -right-4 -bottom-4 opacity-10 text-8xl">📊</div>
-                    </div>
-                    <div class="bg-white border-4 border-slate-100 p-8 rounded-[2.5rem] text-center">
-                        <p class="text-xs font-bold text-slate-400 uppercase mb-1">Students</p>
-                        <h3 id="stat-student" class="text-5xl font-black text-[#008000]">0</h3>
-                    </div>
-                    <div class="bg-white border-4 border-slate-100 p-8 rounded-[2.5rem] text-center">
-                        <p class="text-xs font-bold text-slate-400 uppercase mb-1">Faculty</p>
-                        <h3 id="stat-staff" class="text-5xl font-black text-orange-500">0</h3>
-                    </div>
+                    <div class="bg-[#008000] text-white p-6 rounded-[2rem] text-center shadow-lg"><p class="text-xs font-bold opacity-70 uppercase">Total Visits</p><h3 id="stat-total" class="text-4xl font-black">0</h3></div>
+                    <div class="bg-white border-4 p-6 rounded-[2rem] text-center shadow-md"><p class="text-xs font-bold text-slate-400 uppercase">Students</p><h3 id="stat-student" class="text-4xl font-black text-[#008000]">0</h3></div>
+                    <div class="bg-white border-4 p-6 rounded-[2rem] text-center shadow-md"><p class="text-xs font-bold text-slate-400 uppercase">Faculty</p><h3 id="stat-staff" class="text-4xl font-black text-[#CC0000]">0</h3></div>
                 </div>
 
-                <div class="bg-slate-100/50 p-6 rounded-[2.5rem] grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search records..." class="md:col-span-2 p-4 border-2 rounded-2xl font-bold focus:border-green-500 outline-none shadow-sm">
-                    <input type="date" id="filterDate" onchange="applyFilters()" class="p-4 border-2 rounded-2xl font-bold text-xs uppercase">
-                    <select id="filterCol" onchange="applyFilters()" class="p-4 border-2 rounded-2xl font-bold text-xs">
-                        <option>All Colleges</option>
-                        <option>Integrated School (IS)</option>
-                        <option>CICS</option><option>CEA</option><option>CAS</option>
-                    </select>
-                </div>
-
-                <div class="grid grid-cols-1 gap-8">
-                    <div class="bg-white border-4 border-slate-100 rounded-[2.5rem] overflow-hidden shadow-sm">
-                        <div class="bg-slate-50 p-4 font-black uppercase text-slate-400 text-xs tracking-widest border-b">Member Directory</div>
-                        <div class="overflow-x-auto max-h-[500px] custom-scroll">
-                            <table class="w-full text-left">
-                                <thead class="bg-white sticky top-0 border-b-2">
-                                    <tr class="text-[10px] font-black uppercase text-slate-400">
-                                        <th class="p-5 text-center">Avatar</th>
-                                        <th class="p-5">Information</th>
-                                        <th class="p-5">Department</th>
-                                        <th class="p-5 text-center">Control</th>
+                <div class="grid grid-cols-1 gap-6">
+                    <div class="bg-white border-4 rounded-[2rem] overflow-hidden shadow-sm">
+                        <div class="bg-slate-100 p-4 text-xs font-black uppercase text-slate-500 border-b">User Management</div>
+                        <div class="overflow-x-auto max-h-[400px] custom-scroll">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-slate-50 text-xs uppercase sticky top-0 z-10 border-b">
+                                    <tr>
+                                        <th class="p-4 text-center">Pic</th>
+                                        <th class="p-4">User Details</th>
+                                        <th class="p-4">Role</th>
+                                        <th class="p-4">Dept/Year</th>
+                                        <th class="p-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="user-manage-list" class="divide-y-2 divide-slate-50"></tbody>
+                                <tbody id="user-manage-list" class="divide-y text-sm"></tbody>
                             </table>
                         </div>
                     </div>
@@ -135,44 +119,32 @@
         </div>
     </main>
 
-    <div id="reg-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-        <div class="bg-white w-full max-w-2xl rounded-[4rem] p-12 shadow-2xl relative border-t-[12px] border-[#008000]">
-            <button onclick="closeRegistration()" class="absolute top-8 right-8 text-slate-300 hover:text-red-500 text-3xl">✕</button>
-            <h2 class="text-5xl font-black text-[#008000] italic text-center uppercase mb-10 tracking-tighter">New Profile</h2>
+    <div id="reg-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-xl rounded-[4rem] p-12 shadow-2xl relative border-t-[10px] border-[#008000]">
+            <button onclick="closeRegistration()" class="absolute top-8 right-8 text-slate-400 hover:text-red-500 font-bold text-2xl">✕</button>
+            <h2 class="text-4xl font-black text-[#008000] italic text-center uppercase mb-8">Create Profile</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div class="space-y-6 text-center">
-                    <div class="relative inline-block group">
-                        <img id="img-preview" src="https://via.placeholder.com/300" class="w-48 h-48 rounded-[3rem] object-cover border-8 border-slate-50 shadow-2xl mx-auto">
-                        <input type="file" id="reg-pic" onchange="handleFileSelect(event)" class="hidden" accept="image/*">
-                        <button onclick="document.getElementById('reg-pic').click()" class="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white px-6 py-2 rounded-full shadow-xl text-xs font-black uppercase border-2 hover:bg-green-600 hover:text-white transition-all">Upload Photo</button>
-                    </div>
-                    <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-50 rounded-2xl text-center font-black text-slate-400 text-xl">
+            <div class="space-y-6">
+                <div class="relative group mx-auto w-40 h-40">
+                    <img id="img-preview" src="https://via.placeholder.com/150" class="w-40 h-40 rounded-full object-cover border-8 border-[#008000] shadow-lg">
+                    <input type="file" id="reg-pic" onchange="handleFileSelect(event)" class="hidden" accept="image/*">
+                    <button onclick="document.getElementById('reg-pic').click()" class="absolute bottom-0 right-0 bg-white p-3 rounded-full shadow-md text-[10px] font-black uppercase border-2">Photo</button>
                 </div>
 
-                <div class="space-y-4">
-                    <input type="email" id="reg-google-email" readonly class="w-full p-3 bg-slate-50 rounded-xl text-center text-xs font-bold text-slate-400 italic">
-                    <input type="text" id="reg-full-name" placeholder="SURNAME, FIRSTNAME" class="w-full p-5 border-4 border-slate-100 rounded-2xl text-center font-black text-xl focus:border-[#008000] outline-none">
-                    
-                    <div class="grid grid-cols-2 gap-3">
-                        <select id="reg-role" class="p-4 border-4 border-slate-100 rounded-2xl font-bold">
-                            <option>Student</option><option>Faculty</option>
-                        </select>
-                        <select id="reg-year" class="p-4 border-4 border-slate-100 rounded-2xl font-bold">
-                            <option>1st Year</option><option>2nd Year</option><option>3rd Year</option>
-                            <option>4th Year</option><option>5th Year</option><option>Graduate</option>
-                        </select>
-                    </div>
-
-                    <select id="reg-college" class="w-full p-4 border-4 border-slate-100 rounded-2xl font-bold">
-                        <option disabled selected>CHOOSE DEPARTMENT</option>
-                        <option>Integrated School (IS)</option><option>CICS</option><option>CEA</option>
-                        <option>CAS</option><option>COA</option><option>CAG</option><option>CBA</option>
-                        <option>COC</option><option>CCR</option><option>CED</option>
+                <input type="text" id="reg-id" readonly class="w-full p-4 bg-slate-100 rounded-2xl text-center font-bold text-xl text-slate-500">
+                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-5 border-4 rounded-2xl text-center font-black text-xl focus:border-[#008000] outline-none">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <select id="reg-role" class="p-4 border-2 rounded-2xl font-bold">
+                        <option>Student</option><option>Faculty</option>
                     </select>
-
-                    <button onclick="saveNewUser()" class="w-full neu-gradient text-white py-6 rounded-3xl font-black text-2xl shadow-xl mt-6 hover:brightness-110 transition-all">COMPLETE SETUP</button>
+                    <select id="reg-year" class="p-4 border-2 rounded-2xl font-bold">
+                        <option>1st Year</option><option>2nd Year</option>
+                        <option>3rd Year</option><option>4th Year</option>
+                    </select>
                 </div>
+
+                <button onclick="saveNewUser()" class="w-full neu-gradient text-white py-6 rounded-[2rem] font-black text-2xl shadow-xl mt-4">REGISTER & FINISH</button>
             </div>
         </div>
     </div>
@@ -206,7 +178,7 @@
         onAuthStateChanged(auth, (user) => {
             const adminDisplay = document.getElementById('admin-display-name');
             if (user && ADMIN_EMAILS.includes(user.email)) {
-                if(adminDisplay) adminDisplay.innerText = "ADMIN ACTIVE: " + user.email.toUpperCase();
+                if(adminDisplay) adminDisplay.innerText = "Admin: " + user.email;
                 showAdminPanel();
             } else {
                 if(adminDisplay) adminDisplay.innerText = "";
@@ -249,20 +221,19 @@
             const welcome = document.getElementById('welcome-msg');
             
             welcome.innerHTML = `
-                <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-64 h-64 rounded-[3rem] mx-auto mb-8 border-[10px] border-green-500 object-cover shadow-[0_20px_50px_rgba(0,128,0,0.3)]">
-                <h2 class="text-6xl font-black text-[#008000] italic leading-tight">MABUHAY!<br><span class="text-slate-800 text-4xl not-italic">${user.name}</span></h2>
-                <p class="text-xl font-bold text-slate-400 tracking-widest uppercase">Welcome to the Library</p>
+                <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-48 h-48 rounded-full mx-auto mb-6 border-8 border-green-500 object-cover shadow-2xl">
+                <h2 class="text-5xl font-black text-[#008000] italic">Welcome to Library</h2>
+                <p class="text-2xl mt-2 font-bold text-slate-600">${user.name}</p>
             `;
             
             welcome.classList.remove('hidden');
-            setTimeout(() => location.reload(), 3500);
+            setTimeout(() => location.reload(), 3000);
         };
 
         window.startRegistration = async () => {
             try {
                 const result = await signInWithPopup(auth, provider);
                 document.getElementById('reg-id').value = document.getElementById('studentID').value;
-                document.getElementById('reg-google-email').value = result.user.email;
                 document.getElementById('reg-modal').classList.remove('hidden');
             } catch (e) { alert("Registration cancelled."); }
         };
@@ -271,14 +242,13 @@
             const id = document.getElementById('reg-id').value;
             const fullName = document.getElementById('reg-full-name').value.trim();
             const college = document.getElementById('reg-college').value;
-            const googleEmail = document.getElementById('reg-google-email').value;
 
             if(!fullName || college === "CHOOSE DEPARTMENT") return alert("Please fill all fields.");
 
             const newUser = {
                 name: fullName, role: document.getElementById('reg-role').value,
                 college: college, year: document.getElementById('reg-year').value,
-                googleEmail: googleEmail, profilePic: selectedProfilePic || "", isBlocked: false
+                profilePic: selectedProfilePic || "", isBlocked: false
             };
 
             set(ref(db, 'students/' + id), newUser).then(() => {
@@ -312,9 +282,7 @@
         };
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
-
         window.applyFilters = () => { updateUserTable(); updateStatsCards(); };
-
         window.editUser = (id) => {
             const user = window.studentsData[id];
             const newName = prompt("Edit Full Name:", user.name);
@@ -323,7 +291,6 @@
                 update(ref(db, 'students/' + id), { name: newName, college: newDept }).then(() => alert("Updated!"));
             }
         };
-
         window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
 
         function updateUserTable() {
@@ -331,29 +298,18 @@
             const search = document.getElementById('adminSearch').value.toLowerCase();
             if(!list) return;
             list.innerHTML = "";
-            
             Object.entries(window.studentsData).forEach(([id, data]) => {
-                if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)) || (data.googleEmail && data.googleEmail.toLowerCase().includes(search)))) return;
-                
-                const statusBtnColor = data.isBlocked ? 'bg-green-600 text-white' : 'bg-red-50 text-red-600 border-red-100';
-                list.innerHTML += `
-                <tr class="hover:bg-slate-50 transition-colors">
-                    <td class="p-6 text-center"><img src="${data.profilePic || 'https://via.placeholder.com/60'}" class="w-16 h-16 rounded-2xl mx-auto object-cover border-2 shadow-sm"></td>
-                    <td class="p-6">
-                        <div class="font-mono text-xs text-slate-400 mb-1">${id}</div>
-                        <div class="font-black text-xl text-slate-800 uppercase leading-none">${data.name || '---'}</div>
-                        <div class="text-xs text-slate-400 italic mt-1">${data.googleEmail || 'No Email'}</div>
+                if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)))) return;
+                const statusBtnColor = data.isBlocked ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
+                list.innerHTML += `<tr class="hover:bg-slate-50 border-b">
+                    <td class="p-4 text-center"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-12 h-12 rounded-full mx-auto object-cover border"></td>
+                    <td class="p-4">
+                        <div class="font-mono text-[10px] text-slate-400">${id}</div>
+                        <div class="font-black text-green-700 uppercase">${data.name || '---'}</div>
                     </td>
-                    <td class="p-6">
-                        <span class="px-3 py-1 rounded-full text-[10px] font-black border-2 mb-2 inline-block ${data.role === 'Faculty' ? 'text-orange-600 border-orange-100' : 'text-blue-600 border-blue-100'}">${data.role || 'STUDENT'}</span>
-                        <div class="font-bold text-slate-600">${data.college}</div>
-                    </td>
-                    <td class="p-6">
-                        <div class="flex flex-col gap-2">
-                            <button onclick="editUser('${id}')" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl font-black text-xs uppercase hover:bg-slate-200">Modify</button>
-                            <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="px-4 py-2 rounded-xl font-black text-xs uppercase border-2 ${statusBtnColor}">${data.isBlocked ? 'UNBLOCK' : 'BLOCK'}</button>
-                        </div>
-                    </td>
+                    <td class="p-4"><span class="px-2 py-1 rounded-full text-[10px] font-black border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">${data.role || 'Student'}</span></td>
+                    <td class="p-4 leading-tight font-bold text-slate-600">${data.college}<br><span class="text-[10px] font-normal text-slate-400">${data.year || ''}</span></td>
+                    <td class="p-4"><div class="flex flex-col gap-1"><button onclick="editUser('${id}')" class="py-1 bg-slate-100 text-blue-600 rounded font-bold">Edit</button><button onclick="toggleBlock('${id}', ${data.isBlocked})" class="py-1 rounded font-bold ${statusBtnColor}">${data.isBlocked ? 'Unblock' : 'Block'}</button></div></td>
                 </tr>`;
             });
         }
@@ -362,23 +318,20 @@
             const logEntries = Object.entries(window.logsData).map(([key, data]) => ({ ...data }));
             const fDate = document.getElementById('filterDate').value;
             const fCol = document.getElementById('filterCol').value;
-
-            const filtered = logEntries.filter(l => {
-                return (fDate ? l.date === fDate : true) && (fCol !== "All Colleges" ? l.college === fCol : true);
-            });
-
+            const fReason = document.getElementById('filterReason').value;
+            const filtered = logEntries.filter(l => (fDate ? l.date === fDate : true) && (fCol !== "All Colleges" ? l.college === fCol : true) && (fReason !== "All Reasons" ? l.reason === fReason : true));
             document.getElementById('stat-total').innerText = filtered.length;
             document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
             document.getElementById('stat-staff').innerText = filtered.filter(l => l.role === 'Faculty').length;
         }
 
         function showAdminPanel() { 
-            document.getElementById('main-card').classList.replace('max-w-2xl', 'max-w-7xl');
+            document.getElementById('main-card').classList.replace('max-w-2xl', 'max-w-6xl');
             document.getElementById('attendance-view').classList.add('hidden');
             document.getElementById('admin-panel').classList.remove('hidden');
         }
         function hideAdminPanel() {
-            document.getElementById('main-card').classList.replace('max-w-7xl', 'max-w-2xl');
+            document.getElementById('main-card').classList.replace('max-w-6xl', 'max-w-2xl');
             document.getElementById('admin-panel').classList.add('hidden');
             document.getElementById('attendance-view').classList.remove('hidden');
         }
