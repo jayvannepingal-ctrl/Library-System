@@ -239,7 +239,6 @@
             document.getElementById('log-form-container').classList.add('hidden');
             const welcome = document.getElementById('welcome-msg');
             
-            // DITO ANG PAGBABAGO: Profile pic + "Welcome to Library" lang
             welcome.innerHTML = `
                 <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-2xl">
                 <h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library</h2>
@@ -265,6 +264,15 @@
             const googleEmail = document.getElementById('reg-google-email').value;
 
             if(!fullName || college === "CHOOSE DEPARTMENT") return alert("Please fill all fields.");
+
+            // PAGBABAGO: Check kung ang Google Email ay gamit na ng ibang student ID
+            const emailExists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
+            
+            if (emailExists) {
+                alert("This Google account is already linked to another Student ID!");
+                closeRegistration();
+                return;
+            }
 
             const newUser = {
                 name: fullName, role: document.getElementById('reg-role').value,
