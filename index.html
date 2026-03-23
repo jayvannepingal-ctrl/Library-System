@@ -120,7 +120,7 @@
             // --- CHECK IF GOOGLE ACCOUNT IS ALREADY REGISTERED ---
             const isEmailTaken = Object.values(window.studentsData).some(user => user.googleEmail === googleEmail);
             if (isEmailTaken) {
-                alert("This Google account is already linked to another Student ID.");
+                alert("This Google account is already linked to another Student ID. Please use a different Google account.");
                 signOut(auth);
                 location.reload();
                 return;
@@ -161,13 +161,14 @@
             list.innerHTML = "";
             
             Object.entries(window.studentsData).forEach(([id, data]) => {
-                if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)))) return;
+                if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)) || (data.googleEmail && data.googleEmail.toLowerCase().includes(search)))) return;
 
                 list.innerHTML += `
                 <tr class="border-b text-[11px] hover:bg-slate-50">
                     <td class="p-2"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-8 h-8 rounded-full object-cover"></td>
                     <td class="p-2 font-bold">${id}</td>
                     <td class="p-2 uppercase font-black text-green-700">${data.name || '---'}</td>
+                    <td class="p-2 text-slate-500 italic">${data.googleEmail || 'No Email'}</td>
                     <td class="p-2">
                         <button onclick="editUser('${id}')" class="text-blue-500 mr-2">Edit</button>
                         <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 font-bold">${data.isBlocked ? 'Unblock' : 'Block'}</button>
@@ -252,7 +253,7 @@
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-[2rem] border-2 space-y-3">
-                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name or ID..." class="w-full p-3 border-2 rounded-xl font-bold">
+                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name, ID, or Email..." class="w-full p-3 border-2 rounded-xl font-bold">
                     <div class="grid grid-cols-3 gap-2">
                         <input type="date" id="filterDate" onchange="applyFilters()" class="p-2 border rounded-lg text-[10px] font-bold">
                         <select id="filterCol" onchange="applyFilters()" class="p-2 border rounded-lg text-[10px] font-bold">
@@ -279,7 +280,7 @@
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div class="bg-white border-2 rounded-2xl overflow-hidden h-64 overflow-y-auto">
-                        <table class="w-full text-left"><thead class="bg-slate-50 text-[10px] uppercase"><tr><th class="p-2">Pic</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table>
+                        <table class="w-full text-left"><thead class="bg-slate-50 text-[10px] uppercase"><tr><th class="p-2">Pic</th><th class="p-2">ID</th><th class="p-2">Name</th><th class="p-2">Email</th><th class="p-2">Act</th></tr></thead><tbody id="user-manage-list"></tbody></table>
                     </div>
                     <div class="bg-white border-2 rounded-2xl overflow-hidden h-64 overflow-y-auto">
                         <table class="w-full text-left"><thead class="bg-slate-50 text-[10px] uppercase"><tr><th class="p-2">Time</th><th class="p-2">Name</th><th class="p-2">Reason</th></tr></thead><tbody id="log-history-list"></tbody></table>
