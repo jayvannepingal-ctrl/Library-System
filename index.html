@@ -6,7 +6,6 @@
     <title>NEU Library System | Enhanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
-    **<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>**
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .neu-gradient { background: linear-gradient(135deg, #008000 0%, #006400 100%); }
@@ -20,7 +19,7 @@
     <header class="neu-gradient text-white p-4 shadow-lg flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <div class="bg-white p-1 rounded-full">
-                **<img src="download.png" alt="NEU Logo" class="w-10 h-10">**
+                <img src="download.png" alt="NEU Logo" class="w-10 h-10">
             </div>
             <h1 class="font-black italic tracking-tighter text-xl">NEU LIBRARY </h1>
         </div>
@@ -66,10 +65,7 @@
             <div id="admin-panel" class="hidden space-y-6 w-full">
                 <div class="flex justify-between items-center border-b pb-4">
                     <h2 class="text-2xl font-black text-[#008000] uppercase italic">Admin Dashboard</h2>
-                    <div class="flex gap-2">
-                        **<button onclick="exportToExcel()" class="bg-green-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-green-700 transition-colors">EXPORT EXCEL</button>**
-                        <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-red-700 transition-colors">LOGOUT</button>
-                    </div>
+                    <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-red-700 transition-colors">LOGOUT</button>
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-[2rem] border-2 space-y-3 shadow-inner">
@@ -120,7 +116,7 @@
                     <div class="bg-white border-2 rounded-2xl overflow-hidden shadow-sm">
                         <div class="bg-slate-100 p-2 text-[10px] font-black uppercase text-slate-500 border-b">Attendance History</div>
                         <div class="overflow-x-auto max-h-80 custom-scroll">
-                            <table class="w-full text-left border-collapse" id="attendance-table">
+                            <table class="w-full text-left border-collapse">
                                 <thead class="bg-slate-50 text-[10px] uppercase sticky top-0 z-10 border-b">
                                     <tr><th class="p-3">Date & Time</th><th class="p-3">Full Name</th><th class="p-3">Reason</th></tr>
                                 </thead>
@@ -243,6 +239,7 @@
             document.getElementById('log-form-container').classList.add('hidden');
             const welcome = document.getElementById('welcome-msg');
             
+            // DITO ANG PAGBABAGO: Profile pic + "Welcome to Library" lang
             welcome.innerHTML = `
                 <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-2xl">
                 <h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library</h2>
@@ -319,15 +316,6 @@
         };
 
         window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
-
-        // Pinabago: Export Logic
-        **window.exportToExcel = () => {
-            const table = document.getElementById("attendance-table");
-            const ws = XLSX.utils.table_to_sheet(table);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "AttendanceHistory");
-            XLSX.writeFile(wb, "NEU_Library_Logs.xlsx");
-        };**
 
         function updateUserTable() {
             const list = document.getElementById('user-manage-list');
