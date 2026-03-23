@@ -7,8 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .neu-gradient { background: #008000; } /* Solid Green katulad ng sa image */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; }
+        .neu-gradient { background: #008000; } 
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #008000; border-radius: 10px; }
@@ -16,14 +16,16 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <header class="neu-gradient text-white py-6 px-8 shadow-md flex justify-between items-center sticky top-0 z-50">
+    <header class="neu-gradient text-white w-full py-4 px-6 shadow-md flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-4">
-            <div class="bg-white p-1.5 rounded-full shadow-sm">
-                <img src="download.png" alt="NEU Logo" class="w-14 h-14 object-contain">
+            
+            <div class="bg-white p-1 rounded-full shadow-sm flex items-center justify-center overflow-hidden aspect-square h-14 w-14 border border-slate-100">
+                <img src="download.png" alt="NEU Logo" class="h-full w-full object-contain p-0.5">
             </div>
-            <h1 class="font-black italic tracking-tighter text-3xl uppercase">NEU LIBRARY</h1>
+            
+            <h1 class="font-black italic tracking-tighter text-2xl md:text-3xl uppercase">NEU LIBRARY</h1>
         </div>
-        <div id="admin-display-name" class="text-xs font-bold opacity-90 bg-black/20 px-3 py-1 rounded-full"></div>
+        <div id="admin-display-name" class="text-[10px] md:text-xs font-bold opacity-90 bg-black/10 px-3 py-1 rounded-full"></div>
     </header>
 
     <main class="flex-grow flex items-center justify-center p-4">
@@ -133,36 +135,23 @@
         <div class="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl relative border-t-8 border-[#008000]">
             <button onclick="closeRegistration()" class="absolute top-6 right-6 text-slate-400 hover:text-red-500 font-bold">✕</button>
             <h2 class="text-3xl font-black text-[#008000] italic text-center uppercase mb-6">Create Profile</h2>
-            
             <div class="space-y-4">
                 <div class="relative group mx-auto w-32 h-32">
                     <img id="img-preview" src="https://via.placeholder.com/150" class="w-32 h-32 rounded-full object-cover border-4 border-[#008000] shadow-lg">
                     <input type="file" id="reg-pic" onchange="handleFileSelect(event)" class="hidden" accept="image/*">
                     <button onclick="document.getElementById('reg-pic').click()" class="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md text-[10px] font-black uppercase border-2">Photo</button>
                 </div>
-
                 <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl text-center font-bold text-slate-500">
                 <input type="email" id="reg-google-email" readonly class="w-full p-3 bg-slate-100 rounded-xl text-center text-[10px] italic font-bold text-slate-400">
                 <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-4 border-2 rounded-xl text-center font-black focus:border-[#008000] outline-none">
-                
                 <div class="grid grid-cols-2 gap-2">
-                    <select id="reg-role" class="p-3 border-2 rounded-xl font-bold">
-                        <option>Student</option><option>Faculty</option>
-                    </select>
-                    <select id="reg-year" class="p-3 border-2 rounded-xl font-bold">
-                        <option>1st Year</option><option>2nd Year</option>
-                        <option>3rd Year</option><option>4th Year</option>
-                        <option>5th Year</option><option>Graduate</option>
-                    </select>
+                    <select id="reg-role" class="p-3 border-2 rounded-xl font-bold"><option>Student</option><option>Faculty</option></select>
+                    <select id="reg-year" class="p-3 border-2 rounded-xl font-bold"><option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>5th Year</option><option>Graduate</option></select>
                 </div>
-
                 <select id="reg-college" class="w-full p-3 border-2 rounded-xl font-bold">
                     <option disabled selected>CHOOSE DEPARTMENT</option>
-                    <option>Integrated School (IS)</option><option>CICS</option><option>CEA</option>
-                    <option>CAS</option><option>COA</option><option>CAG</option><option>CBA</option>
-                    <option>COC</option><option>CCR</option><option>CED</option>
+                    <option>Integrated School (IS)</option><option>CICS</option><option>CEA</option><option>CAS</option><option>COA</option><option>CAG</option><option>CBA</option><option>COC</option><option>CCR</option><option>CED</option>
                 </select>
-
                 <button onclick="saveNewUser()" class="w-full neu-gradient text-white py-4 rounded-2xl font-black text-lg shadow-xl mt-4">REGISTER & FINISH</button>
             </div>
         </div>
@@ -219,31 +208,16 @@
             const id = document.getElementById('studentID').value.trim();
             const reason = document.getElementById('visitReason').value;
             const idPattern = /^\d{2}-\d{5}-\d{3}$/;
-
             if (!idPattern.test(id)) return alert("ID Format must be 00-00000-000");
-
             const user = window.studentsData[id];
-            if (!user) {
-                document.getElementById('profile-not-found').classList.remove('hidden');
-                return;
-            }
+            if (!user) { document.getElementById('profile-not-found').classList.remove('hidden'); return; }
             if (user.isBlocked) return alert("Your account is BLOCKED. Please contact the librarian.");
-
             const now = new Date();
-            const logEntry = {
-                id, name: user.name, role: user.role, college: user.college, reason,
-                date: now.toLocaleDateString('en-CA'), timestamp: now.toISOString()
-            };
-
+            const logEntry = { id, name: user.name, role: user.role, college: user.college, reason, date: now.toLocaleDateString('en-CA'), timestamp: now.toISOString() };
             await push(ref(db, 'logs'), logEntry);
             document.getElementById('log-form-container').classList.add('hidden');
             const welcome = document.getElementById('welcome-msg');
-            
-            welcome.innerHTML = `
-                <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-2xl">
-                <h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library</h2>
-            `;
-            
+            welcome.innerHTML = `<img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-2xl"><h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library</h2>`;
             welcome.classList.remove('hidden');
             setTimeout(() => location.reload(), 3000);
         };
@@ -262,65 +236,34 @@
             const fullName = document.getElementById('reg-full-name').value.trim();
             const college = document.getElementById('reg-college').value;
             const googleEmail = document.getElementById('reg-google-email').value;
-
             if(!fullName || college === "CHOOSE DEPARTMENT") return alert("Please fill all fields.");
-
-            // Anti-duplicate Google Email check
             const emailExists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
-            if (emailExists) {
-                alert("This Google account is already linked to another Student ID!");
-                closeRegistration();
-                return;
-            }
-
-            const newUser = {
-                name: fullName, role: document.getElementById('reg-role').value,
-                college: college, year: document.getElementById('reg-year').value,
-                googleEmail: googleEmail, profilePic: selectedProfilePic || "", isBlocked: false
-            };
-
-            set(ref(db, 'students/' + id), newUser).then(() => {
-                alert("Profile Created!");
-                document.getElementById('reg-modal').classList.add('hidden');
-                window.handleLog();
-            });
+            if (emailExists) { alert("This Google account is already linked to another Student ID!"); closeRegistration(); return; }
+            const newUser = { name: fullName, role: document.getElementById('reg-role').value, college: college, year: document.getElementById('reg-year').value, googleEmail: googleEmail, profilePic: selectedProfilePic || "", isBlocked: false };
+            set(ref(db, 'students/' + id), newUser).then(() => { alert("Profile Created!"); document.getElementById('reg-modal').classList.add('hidden'); window.handleLog(); });
         };
 
         window.handleFileSelect = (e) => {
             const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onloadend = () => {
-                    selectedProfilePic = reader.result;
-                    document.getElementById('img-preview').src = reader.result;
-                };
+                reader.onloadend = () => { selectedProfilePic = reader.result; document.getElementById('img-preview').src = reader.result; };
                 reader.readAsDataURL(file);
             }
         };
 
         window.loginAdmin = async () => {
-            try {
-                await signOut(auth);
-                const result = await signInWithPopup(auth, provider);
-                if (!ADMIN_EMAILS.includes(result.user.email)) {
-                    alert("Unauthorized Email!");
-                    await signOut(auth);
-                }
-            } catch (error) { console.log(error); }
+            try { await signOut(auth); const result = await signInWithPopup(auth, provider); if (!ADMIN_EMAILS.includes(result.user.email)) { alert("Unauthorized Email!"); await signOut(auth); } } catch (error) { console.log(error); }
         };
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
         window.applyFilters = () => { updateUserTable(); updateStatsCards(); };
-
         window.editUser = (id) => {
             const user = window.studentsData[id];
             const newName = prompt("Edit Full Name:", user.name);
             const newDept = prompt("Edit Department:", user.college);
-            if (newName && newDept) {
-                update(ref(db, 'students/' + id), { name: newName, college: newDept }).then(() => alert("Updated!"));
-            }
+            if (newName && newDept) { update(ref(db, 'students/' + id), { name: newName, college: newDept }).then(() => alert("Updated!")); }
         };
-
         window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
 
         function updateUserTable() {
@@ -336,7 +279,6 @@
                     <td class="p-3">
                         <div class="font-mono text-[9px] text-slate-400">${id}</div>
                         <div class="font-black text-green-700 uppercase">${data.name || '---'}</div>
-                        <div class="text-[9px] text-slate-400 italic truncate max-w-[150px]">${data.googleEmail || 'No Email'}</div>
                     </td>
                     <td class="p-3"><span class="px-2 py-1 rounded-full text-[9px] font-black border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">${data.role || 'Student'}</span></td>
                     <td class="p-3 leading-tight font-bold text-slate-600">${data.college}<br><span class="text-[9px] font-normal text-slate-400">${data.year || ''}</span></td>
