@@ -5,25 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEU Library System | Enhanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        /* Pinatibay ang font-weight sa buong body */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f3f4f6; 
+            font-weight: 600; 
+        }
         .neu-gradient { background: linear-gradient(135deg, #008000 0%, #006400 100%); }
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #008000; border-radius: 10px; }
+        
+        /* Fixed Logo Container para laging sentro */
+        .logo-container {
+            width: 42px;
+            height: 42px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <header class="neu-gradient text-white p-4 shadow-lg flex justify-between items-center sticky top-0 z-50">
         <div class="flex items-center gap-3">
-            <div class="bg-white p-1 rounded-full">
-                <img src="download.png" alt="NEU Logo" class="w-10 h-10">
+            <div class="logo-container">
+                <img src="download.png" alt="NEU Logo" class="w-full h-full object-contain">
             </div>
-            <h1 class="font-black italic tracking-tighter text-xl">NEU LIBRARY </h1>
+            <h1 class="font-black italic tracking-tighter text-2xl uppercase">NEU LIBRARY</h1>
         </div>
-        <div id="admin-display-name" class="text-[10px] font-bold opacity-80"></div>
+        <div id="admin-display-name" class="text-[12px] font-black opacity-90"></div>
     </header>
 
     <main class="flex-grow flex items-center justify-center p-4">
@@ -36,7 +55,7 @@
                     </div>
                     
                     <div class="space-y-4">
-                        <select id="visitReason" class="w-full p-4 border-2 rounded-2xl font-bold text-slate-700 focus:border-[#008000] outline-none appearance-none bg-slate-50">
+                        <select id="visitReason" class="w-full p-4 border-2 rounded-2xl font-black text-slate-700 focus:border-[#008000] outline-none appearance-none bg-slate-50">
                             <option>Reading</option>
                             <option>Research</option>
                             <option>Computer Use</option>
@@ -48,12 +67,12 @@
                     </div>
 
                     <div id="profile-not-found" class="hidden text-center p-4 bg-orange-50 rounded-2xl border-2 border-orange-200">
-                        <p class="font-bold text-orange-700 mb-2">Student ID not found in the system.</p>
+                        <p class="font-black text-orange-700 mb-2">Student ID not found in the system.</p>
                         <button onclick="startRegistration()" class="text-sm font-black text-[#008000] underline uppercase tracking-tighter">Register with Google</button>
                     </div>
 
                     <div class="text-center pt-4">
-                        <button onclick="loginAdmin()" class="text-[10px] font-bold text-slate-400 hover:text-[#008000] transition-colors uppercase flex items-center justify-center gap-1 mx-auto">
+                        <button onclick="loginAdmin()" class="text-[12px] font-black text-slate-400 hover:text-[#008000] transition-colors uppercase flex items-center justify-center gap-1 mx-auto">
                             👤 Admin Access
                         </button>
                     </div>
@@ -65,14 +84,14 @@
             <div id="admin-panel" class="hidden space-y-6 w-full">
                 <div class="flex justify-between items-center border-b pb-4">
                     <h2 class="text-2xl font-black text-[#008000] uppercase italic">Admin Dashboard</h2>
-                    <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-4 py-2 rounded-xl text-xs font-bold shadow-md hover:bg-red-700 transition-colors">LOGOUT</button>
+                    <button onclick="logoutAdmin()" class="bg-[#CC0000] text-white px-4 py-2 rounded-xl text-xs font-black shadow-md hover:bg-red-700 transition-colors">LOGOUT</button>
                 </div>
 
                 <div class="bg-slate-50 p-4 rounded-[2rem] border-2 space-y-3 shadow-inner">
-                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name, ID, or Email..." class="w-full p-3 border-2 rounded-xl font-bold focus:border-green-500 outline-none">
+                    <input type="text" id="adminSearch" onkeyup="applyFilters()" placeholder="Search Name, ID, or Email..." class="w-full p-3 border-2 rounded-xl font-black focus:border-green-500 outline-none">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <input type="date" id="filterDate" onchange="applyFilters()" class="p-2 border rounded-lg text-[10px] font-bold">
-                        <select id="filterCol" onchange="applyFilters()" class="p-2 border rounded-lg text-[10px] font-bold">
+                        <input type="date" id="filterDate" onchange="applyFilters()" class="p-2 border rounded-lg text-[11px] font-black">
+                        <select id="filterCol" onchange="applyFilters()" class="p-2 border rounded-lg text-[11px] font-black">
                             <option>All Colleges</option>
                             <option>Integrated School (IS)</option>
                             <option>CICS</option><option>CEA</option><option>CAS</option>
@@ -82,16 +101,16 @@
                             <option>CON</option><option>CPT</option><option>CRT</option>
                             <option>SOIR</option>
                         </select>
-                        <select id="filterReason" onchange="applyFilters()" class="p-2 border rounded-lg text-[10px] font-bold">
+                        <select id="filterReason" onchange="applyFilters()" class="p-2 border rounded-lg text-[11px] font-black">
                             <option>All Reasons</option><option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-3 gap-4">
-                    <div class="bg-[#008000] text-white p-4 rounded-2xl text-center shadow-lg"><p class="text-[10px] font-bold opacity-70 uppercase">Total Visits</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
-                    <div class="bg-white border-2 p-4 rounded-2xl text-center shadow-md"><p class="text-[10px] font-bold text-slate-400 uppercase">Students</p><h3 id="stat-student" class="text-2xl font-black text-[#008000]">0</h3></div>
-                    <div class="bg-white border-2 p-4 rounded-2xl text-center shadow-md"><p class="text-[10px] font-bold text-slate-400 uppercase">Faculty</p><h3 id="stat-staff" class="text-2xl font-black text-[#CC0000]">0</h3></div>
+                    <div class="bg-[#008000] text-white p-4 rounded-2xl text-center shadow-lg"><p class="text-[10px] font-black opacity-70 uppercase">Total Visits</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
+                    <div class="bg-white border-2 p-4 rounded-2xl text-center shadow-md"><p class="text-[10px] font-black text-slate-400 uppercase">Students</p><h3 id="stat-student" class="text-2xl font-black text-[#008000]">0</h3></div>
+                    <div class="bg-white border-2 p-4 rounded-2xl text-center shadow-md"><p class="text-[10px] font-black text-slate-400 uppercase">Faculty</p><h3 id="stat-staff" class="text-2xl font-black text-[#CC0000]">0</h3></div>
                 </div>
 
                 <div class="grid grid-cols-1 gap-6">
@@ -99,16 +118,16 @@
                         <div class="bg-slate-100 p-2 text-[10px] font-black uppercase text-slate-500 border-b">User Management</div>
                         <div class="overflow-x-auto max-h-80 custom-scroll">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-50 text-[10px] uppercase sticky top-0 z-10 border-b">
+                                <thead class="bg-slate-50 text-[10px] font-black uppercase sticky top-0 z-10 border-b">
                                     <tr>
                                         <th class="p-3 text-center">Pic</th>
-                                        <th class="p-3">User Details (ID/Name/Email)</th>
+                                        <th class="p-3">User Details</th>
                                         <th class="p-3">Role</th>
                                         <th class="p-3">Dept/Year</th>
                                         <th class="p-3 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="user-manage-list" class="divide-y"></tbody>
+                                <tbody id="user-manage-list" class="divide-y font-bold"></tbody>
                             </table>
                         </div>
                     </div>
@@ -117,10 +136,10 @@
                         <div class="bg-slate-100 p-2 text-[10px] font-black uppercase text-slate-500 border-b">Attendance History</div>
                         <div class="overflow-x-auto max-h-80 custom-scroll">
                             <table class="w-full text-left border-collapse">
-                                <thead class="bg-slate-50 text-[10px] uppercase sticky top-0 z-10 border-b">
+                                <thead class="bg-slate-50 text-[10px] font-black uppercase sticky top-0 z-10 border-b">
                                     <tr><th class="p-3">Date & Time</th><th class="p-3">Full Name</th><th class="p-3">Reason</th></tr>
                                 </thead>
-                                <tbody id="log-history-list" class="divide-y"></tbody>
+                                <tbody id="log-history-list" class="divide-y font-bold"></tbody>
                             </table>
                         </div>
                     </div>
@@ -131,38 +150,33 @@
 
     <div id="reg-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl relative border-t-8 border-[#008000]">
-            <button onclick="closeRegistration()" class="absolute top-6 right-6 text-slate-400 hover:text-red-500 font-bold">✕</button>
+            <button onclick="closeRegistration()" class="absolute top-6 right-6 text-slate-400 hover:text-red-500 font-black">✕</button>
             <h2 class="text-3xl font-black text-[#008000] italic text-center uppercase mb-6">Create Profile</h2>
-            
             <div class="space-y-4">
                 <div class="relative group mx-auto w-32 h-32">
                     <img id="img-preview" src="https://via.placeholder.com/150" class="w-32 h-32 rounded-full object-cover border-4 border-[#008000] shadow-lg">
                     <input type="file" id="reg-pic" onchange="handleFileSelect(event)" class="hidden" accept="image/*">
                     <button onclick="document.getElementById('reg-pic').click()" class="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-md text-[10px] font-black uppercase border-2">Photo</button>
                 </div>
-
-                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl text-center font-bold text-slate-500">
-                <input type="email" id="reg-google-email" readonly class="w-full p-3 bg-slate-100 rounded-xl text-center text-[10px] italic font-bold text-slate-400">
-                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-4 border-2 rounded-xl text-center font-black focus:border-[#008000] outline-none">
-                
+                <input type="text" id="reg-id" readonly class="w-full p-3 bg-slate-100 rounded-xl text-center font-black text-slate-500">
+                <input type="email" id="reg-google-email" readonly class="w-full p-3 bg-slate-100 rounded-xl text-center text-[11px] italic font-black text-slate-400">
+                <input type="text" id="reg-full-name" placeholder="FULL NAME (LAST, FIRST)" class="w-full p-4 border-2 rounded-xl text-center font-black focus:border-[#008000] outline-none uppercase">
                 <div class="grid grid-cols-2 gap-2">
-                    <select id="reg-role" class="p-3 border-2 rounded-xl font-bold">
+                    <select id="reg-role" class="p-3 border-2 rounded-xl font-black">
                         <option>Student</option><option>Faculty</option>
                     </select>
-                    <select id="reg-year" class="p-3 border-2 rounded-xl font-bold">
+                    <select id="reg-year" class="p-3 border-2 rounded-xl font-black">
                         <option>1st Year</option><option>2nd Year</option>
                         <option>3rd Year</option><option>4th Year</option>
                         <option>5th Year</option><option>Graduate</option>
                     </select>
                 </div>
-
-                <select id="reg-college" class="w-full p-3 border-2 rounded-xl font-bold">
+                <select id="reg-college" class="w-full p-3 border-2 rounded-xl font-black">
                     <option disabled selected>CHOOSE DEPARTMENT</option>
                     <option>Integrated School (IS)</option><option>CICS</option><option>CEA</option>
                     <option>CAS</option><option>COA</option><option>CAG</option><option>CBA</option>
                     <option>COC</option><option>CCR</option><option>CED</option>
                 </select>
-
                 <button onclick="saveNewUser()" class="w-full neu-gradient text-white py-4 rounded-2xl font-black text-lg shadow-xl mt-4">REGISTER & FINISH</button>
             </div>
         </div>
@@ -239,7 +253,6 @@
             document.getElementById('log-form-container').classList.add('hidden');
             const welcome = document.getElementById('welcome-msg');
             
-            // DITO ANG PAGBABAGO: Profile pic + "Welcome to Library" lang
             welcome.innerHTML = `
                 <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-2xl">
                 <h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library</h2>
@@ -328,23 +341,23 @@
                 
                 const statusBtnColor = data.isBlocked ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
                 list.innerHTML += `
-                <tr class="text-[11px] hover:bg-slate-50 border-b">
+                <tr class="text-[11px] font-bold hover:bg-slate-50 border-b">
                     <td class="p-3 text-center"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full mx-auto object-cover border"></td>
                     <td class="p-3">
                         <div class="font-mono text-[9px] text-slate-400">${id}</div>
-                        <div class="font-black text-green-700 uppercase">${data.name || '---'}</div>
+                        <div class="text-green-700 uppercase">${data.name || '---'}</div>
                         <div class="text-[9px] text-slate-400 italic truncate max-w-[150px]">${data.googleEmail || 'No Email'}</div>
                     </td>
                     <td class="p-3">
-                        <span class="px-2 py-1 rounded-full text-[9px] font-black border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">
+                        <span class="px-2 py-1 rounded-full text-[9px] border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">
                             ${data.role || 'Student'}
                         </span>
                     </td>
-                    <td class="p-3 leading-tight font-bold text-slate-600">${data.college}<br><span class="text-[9px] font-normal text-slate-400">${data.year || ''}</span></td>
+                    <td class="p-3 leading-tight text-slate-600">${data.college}<br><span class="text-[9px] font-normal text-slate-400">${data.year || ''}</span></td>
                     <td class="p-3">
                         <div class="flex flex-col gap-1">
-                            <button onclick="editUser('${id}')" class="py-1 bg-slate-100 text-blue-600 rounded font-bold">Edit</button>
-                            <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="py-1 rounded font-bold ${statusBtnColor}">${data.isBlocked ? 'Unblock' : 'Block'}</button>
+                            <button onclick="editUser('${id}')" class="py-1 bg-slate-100 text-blue-600 rounded">Edit</button>
+                            <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="py-1 rounded ${statusBtnColor}">${data.isBlocked ? 'Unblock' : 'Block'}</button>
                         </div>
                     </td>
                 </tr>`;
@@ -373,7 +386,7 @@
             filtered.reverse().forEach((log) => {
                 const dt = new Date(log.timestamp);
                 const displayTime = isNaN(dt) ? "---" : dt.toLocaleDateString([], {month:'2-digit', day:'2-digit'}) + ", " + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                logList.innerHTML += `<tr class="border-b text-[11px]"><td class="p-3">${displayTime}</td><td class="p-3 font-bold uppercase text-slate-700">${log.name}</td><td class="p-3 italic text-slate-500">${log.reason}</td></tr>`;
+                logList.innerHTML += `<tr class="border-b text-[11px]"><td class="p-3">${displayTime}</td><td class="p-3 uppercase text-slate-700">${log.name}</td><td class="p-3 italic text-slate-500">${log.reason}</td></tr>`;
             });
         }
 
