@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
-        .neu-gradient { background: linear-gradient(135deg, #008000 0%, #006400 100%); }
+        .neu-gradient { background: #008000; } /* Solid Green katulad ng sa image */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #008000; border-radius: 10px; }
@@ -16,14 +16,14 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <header class="neu-gradient text-white p-4 shadow-lg flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <div class="bg-white p-1 rounded-full">
-                <img src="download.png" alt="NEU Logo" class="w-10 h-10">
+    <header class="neu-gradient text-white py-6 px-8 shadow-md flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <div class="bg-white p-1.5 rounded-full shadow-sm">
+                <img src="download.png" alt="NEU Logo" class="w-14 h-14 object-contain">
             </div>
-            <h1 class="font-black italic tracking-tighter text-xl">NEU LIBRARY </h1>
+            <h1 class="font-black italic tracking-tighter text-3xl uppercase">NEU LIBRARY</h1>
         </div>
-        <div id="admin-display-name" class="text-[10px] font-bold opacity-80"></div>
+        <div id="admin-display-name" class="text-xs font-bold opacity-90 bg-black/20 px-3 py-1 rounded-full"></div>
     </header>
 
     <main class="flex-grow flex items-center justify-center p-4">
@@ -265,9 +265,8 @@
 
             if(!fullName || college === "CHOOSE DEPARTMENT") return alert("Please fill all fields.");
 
-            // PAGBABAGO: Check kung ang Google Email ay gamit na ng ibang student ID
+            // Anti-duplicate Google Email check
             const emailExists = Object.values(window.studentsData).some(u => u.googleEmail === googleEmail);
-            
             if (emailExists) {
                 alert("This Google account is already linked to another Student ID!");
                 closeRegistration();
@@ -311,7 +310,6 @@
         };
 
         window.logoutAdmin = () => signOut(auth).then(() => location.reload());
-
         window.applyFilters = () => { updateUserTable(); updateStatsCards(); };
 
         window.editUser = (id) => {
@@ -330,31 +328,19 @@
             const search = document.getElementById('adminSearch').value.toLowerCase();
             if(!list) return;
             list.innerHTML = "";
-            
             Object.entries(window.studentsData).forEach(([id, data]) => {
                 if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)) || (data.googleEmail && data.googleEmail.toLowerCase().includes(search)))) return;
-                
                 const statusBtnColor = data.isBlocked ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
-                list.innerHTML += `
-                <tr class="text-[11px] hover:bg-slate-50 border-b">
+                list.innerHTML += `<tr class="text-[11px] hover:bg-slate-50 border-b">
                     <td class="p-3 text-center"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full mx-auto object-cover border"></td>
                     <td class="p-3">
                         <div class="font-mono text-[9px] text-slate-400">${id}</div>
                         <div class="font-black text-green-700 uppercase">${data.name || '---'}</div>
                         <div class="text-[9px] text-slate-400 italic truncate max-w-[150px]">${data.googleEmail || 'No Email'}</div>
                     </td>
-                    <td class="p-3">
-                        <span class="px-2 py-1 rounded-full text-[9px] font-black border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">
-                            ${data.role || 'Student'}
-                        </span>
-                    </td>
+                    <td class="p-3"><span class="px-2 py-1 rounded-full text-[9px] font-black border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">${data.role || 'Student'}</span></td>
                     <td class="p-3 leading-tight font-bold text-slate-600">${data.college}<br><span class="text-[9px] font-normal text-slate-400">${data.year || ''}</span></td>
-                    <td class="p-3">
-                        <div class="flex flex-col gap-1">
-                            <button onclick="editUser('${id}')" class="py-1 bg-slate-100 text-blue-600 rounded font-bold">Edit</button>
-                            <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="py-1 rounded font-bold ${statusBtnColor}">${data.isBlocked ? 'Unblock' : 'Block'}</button>
-                        </div>
-                    </td>
+                    <td class="p-3"><div class="flex flex-col gap-1"><button onclick="editUser('${id}')" class="py-1 bg-slate-100 text-blue-600 rounded font-bold">Edit</button><button onclick="toggleBlock('${id}', ${data.isBlocked})" class="py-1 rounded font-bold ${statusBtnColor}">${data.isBlocked ? 'Unblock' : 'Block'}</button></div></td>
                 </tr>`;
             });
         }
@@ -364,17 +350,10 @@
             const fDate = document.getElementById('filterDate').value;
             const fCol = document.getElementById('filterCol').value;
             const fReason = document.getElementById('filterReason').value;
-
-            const filtered = logEntries.filter(l => {
-                return (fDate ? l.date === fDate : true) &&
-                        (fCol !== "All Colleges" ? l.college === fCol : true) &&
-                        (fReason !== "All Reasons" ? l.reason === fReason : true);
-            });
-
+            const filtered = logEntries.filter(l => (fDate ? l.date === fDate : true) && (fCol !== "All Colleges" ? l.college === fCol : true) && (fReason !== "All Reasons" ? l.reason === fReason : true));
             document.getElementById('stat-total').innerText = filtered.length;
             document.getElementById('stat-student').innerText = filtered.filter(l => l.role === 'Student').length;
             document.getElementById('stat-staff').innerText = filtered.filter(l => l.role === 'Faculty').length;
-
             const logList = document.getElementById('log-history-list');
             if(!logList) return;
             logList.innerHTML = "";
