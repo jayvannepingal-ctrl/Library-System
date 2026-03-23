@@ -163,7 +163,7 @@
 
         window.toggleBlock = (id, status) => update(ref(db, 'students/' + id), { isBlocked: !status });
 
-        // IN-UPDATE NA TABLE (MAY ROLE COLUMN)
+        
         function updateUserTable() {
             const list = document.getElementById('user-manage-list');
             const search = document.getElementById('adminSearch').value.toLowerCase();
@@ -176,18 +176,23 @@
                 const roleColor = data.role === 'Faculty' ? 'text-red-600' : 'text-blue-600';
 
                 list.innerHTML += `
-                <tr class="border-b text-[11px] hover:bg-slate-50">
+                <tr class="border-b text-[10px] hover:bg-slate-50">
                     <td class="p-2"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-8 h-8 rounded-full object-cover"></td>
                     <td class="p-2 font-bold">${id}</td>
-                    <td class="p-2 uppercase font-black text-green-700">${data.name || '---'}</td>
+                    <td class="p-2">
+                        <div class="uppercase font-black text-green-700">${data.name || '---'}</div>
+                        <div class="text-[9px] text-slate-400 italic">${data.googleEmail || 'No Email'}</div>
+                    </td>
                     <td class="p-2 font-bold ${roleColor}">${data.role || 'Student'}</td>
                     <td class="p-2">
-                        <div class="text-[9px] font-bold text-slate-400">${data.college}</div>
-                        <div class="text-[9px]">${data.year || ''}</div>
+                        <div class="font-bold text-slate-600">${data.college}</div>
+                        <div class="text-[9px] text-slate-400">${data.year || 'N/A'}</div>
                     </td>
                     <td class="p-2">
-                        <button onclick="editUser('${id}')" class="text-blue-500 mr-2 font-bold">Edit</button>
-                        <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 font-bold">${data.isBlocked ? 'Unblock' : 'Block'}</button>
+                        <div class="flex flex-col gap-1">
+                            <button onclick="editUser('${id}')" class="text-blue-500 font-bold hover:underline">Edit</button>
+                            <button onclick="toggleBlock('${id}', ${data.isBlocked})" class="text-red-500 font-bold hover:underline">${data.isBlocked ? 'Unblock' : 'Block'}</button>
+                        </div>
                     </td>
                 </tr>`;
             });
