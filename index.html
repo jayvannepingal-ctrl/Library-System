@@ -9,7 +9,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
         .neu-gradient { background: linear-gradient(135deg, #008000 0%, #006400 100%); }
-        /* Custom scrollbar para sa tables */
         .custom-scroll::-webkit-scrollbar { width: 6px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f1f1; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #008000; border-radius: 10px; }
@@ -195,7 +194,6 @@
         window.logsData = {};
         let selectedProfilePic = "";
 
-        // --- AUTH & DATA SYNC ---
         onAuthStateChanged(auth, (user) => {
             const adminDisplay = document.getElementById('admin-display-name');
             if (user && ADMIN_EMAILS.includes(user.email)) {
@@ -217,7 +215,6 @@
             updateStatsCards();
         });
 
-     
         window.handleLog = async () => {
             const id = document.getElementById('studentID').value.trim();
             const reason = document.getElementById('visitReason').value;
@@ -241,11 +238,13 @@
             await push(ref(db, 'logs'), logEntry);
             document.getElementById('log-form-container').classList.add('hidden');
             const welcome = document.getElementById('welcome-msg');
+            
+            // DITO ANG PAGBABAGO: Profile pic + "Welcome to Library" lang
             welcome.innerHTML = `
                 <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover shadow-2xl">
-                <h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library>
-                <p class="text-slate-400 font-bold mt-2">Enjoy your time in the library.</p>
+                <h2 class="text-4xl font-black text-[#008000] italic">Welcome to Library</h2>
             `;
+            
             welcome.classList.remove('hidden');
             setTimeout(() => location.reload(), 3000);
         };
@@ -292,7 +291,6 @@
             }
         };
 
-        // --- ADMIN DASHBOARD LOGIC ---
         window.loginAdmin = async () => {
             try {
                 await signOut(auth);
@@ -361,8 +359,8 @@
 
             const filtered = logEntries.filter(l => {
                 return (fDate ? l.date === fDate : true) &&
-                       (fCol !== "All Colleges" ? l.college === fCol : true) &&
-                       (fReason !== "All Reasons" ? l.reason === fReason : true);
+                        (fCol !== "All Colleges" ? l.college === fCol : true) &&
+                        (fReason !== "All Reasons" ? l.reason === fReason : true);
             });
 
             document.getElementById('stat-total').innerText = filtered.length;
