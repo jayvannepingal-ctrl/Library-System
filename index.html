@@ -23,7 +23,7 @@
             <img src="download.png" alt="NEU Logo" class="h-full w-full object-contain scale-110">
         </div>
         <h1 class="font-[900] italic tracking-tighter text-2xl md:text-3xl uppercase leading-none drop-shadow-lg">
-            NEU LIBRARY
+            NEW ERA UNIVERSITY LIBRARY
         </h1>
     </div>
     <div id="admin-display-name" class="text-[10px] md:text-xs font-bold opacity-90 bg-black/10 px-3 py-1 rounded-full"></div>
@@ -61,7 +61,6 @@
                     </button>
                 </div>
             </div>
-
             <div id="welcome-msg" class="hidden text-center animate-bounce"></div>
         </div>
 
@@ -109,6 +108,7 @@
                                 <tr>
                                     <th class="p-3 text-center">Pic</th>
                                     <th class="p-3">User Details</th>
+                                    <th class="p-3">Registered Email</th>
                                     <th class="p-3">Role</th>
                                     <th class="p-3">Dept/Year</th>
                                     <th class="p-3 text-center">Actions</th>
@@ -294,11 +294,13 @@
         if(!list) return;
         list.innerHTML = "";
         Object.entries(window.studentsData).forEach(([id, data]) => {
-            if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)))) return;
+            const emailText = data.googleEmail || '---';
+            if (search && !(id.includes(search) || (data.name && data.name.toLowerCase().includes(search)) || emailText.toLowerCase().includes(search))) return;
             const statusBtnColor = data.isBlocked ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600';
             list.innerHTML += `<tr class="text-[11px] hover:bg-slate-50 border-b">
                 <td class="p-3 text-center"><img src="${data.profilePic || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded-full mx-auto object-cover border"></td>
                 <td class="p-3"><div class="font-mono text-[9px] text-slate-400">${id}</div><div class="font-black text-green-700 uppercase">${data.name || '---'}</div></td>
+                <td class="p-3 font-medium text-slate-500 text-[10px] italic">${emailText}</td>
                 <td class="p-3"><span class="px-2 py-1 rounded-full text-[9px] font-black border ${data.role === 'Faculty' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'}">${data.role || 'Student'}</span></td>
                 <td class="p-3 leading-tight font-bold text-slate-600">${data.college}<br><span class="text-[9px] font-normal text-slate-400">${data.year || ''}</span></td>
                 <td class="p-3 text-center"><button onclick="toggleBlock('${id}', ${data.isBlocked})" class="py-1 px-3 rounded font-bold ${statusBtnColor}">${data.isBlocked ? 'Unblock' : 'Block'}</button></td>
