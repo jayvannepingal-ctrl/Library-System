@@ -80,7 +80,7 @@
             const welcome = document.getElementById('welcome-msg');
             welcome.innerHTML = `
                 <img src="${user.profilePic || 'https://via.placeholder.com/150'}" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-green-500 object-cover">
-                <h2 class="text-5xl font-black text-[#008000] italic">Welcome, ${user.name.split(',')[0]}!</h2>
+                <h2 class="text-5xl font-black text-[#008000] italic">Welcome to Library!</h2>
             `;
             welcome.classList.remove('hidden');
             setTimeout(() => location.reload(), 3000);
@@ -210,8 +210,8 @@
 <body class="bg-slate-100 min-h-screen flex flex-col font-sans">
     <nav class="bg-[#008000] text-white py-4 px-8 shadow-xl flex justify-between items-center border-b-8 border-[#CC0000]">
         <div class="flex items-center gap-4">
-            <img src="https://via.placeholder.com/60" class="h-12 bg-white rounded-full p-1">
-            <h1 class="font-black text-xl uppercase italic tracking-tighter">NEU Library System</h1>
+            <img src="download.png">
+            <h1 class="font-black text-xl uppercase italic tracking-tighter">NEU Library</h1>
         </div>
         <div id="admin-display-name" class="text-xs font-mono"></div>
     </nav>
@@ -227,7 +227,7 @@
                         <option>Reading</option><option>Research</option><option>Computer Use</option><option>Assignments</option><option>Books/Borrowing</option>
                     </select>
                     <input type="text" id="studentID" placeholder="00-00000-000" class="w-full p-6 border-2 rounded-[2rem] text-center text-3xl font-mono uppercase outline-none focus:border-green-500">
-                    <button onclick="handleLog()" class="w-full bg-[#008000] text-white font-black py-5 rounded-[2rem] text-xl shadow-lg hover:scale-105 transition-transform">Confirm</button>
+                    <button onclick="handleLog()" class="w-full bg-[#008000] text-white font-black py-5 rounded-[2rem] text-xl shadow-lg hover:scale-105 transition-transform">Time In</button>
                     <div id="profile-not-found" class="hidden p-4 bg-red-50 rounded-xl text-red-600 font-bold text-sm">
                         No Profile Found. <button onclick="startRegistration()" class="underline">Register with Google</button>
                     </div>
