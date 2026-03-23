@@ -112,14 +112,24 @@
             const id = document.getElementById('reg-id').value;
             const fullName = document.getElementById('reg-full-name').value.trim();
             const college = document.getElementById('reg-college').value;
+            const googleEmail = document.getElementById('reg-google-email').value;
 
             if(!fullName) return alert("Please enter your name");
             if(college === "CHOOSE DEPARTMENT") return alert("Please select your department");
 
+            // --- CHECK IF GOOGLE ACCOUNT IS ALREADY REGISTERED ---
+            const isEmailTaken = Object.values(window.studentsData).some(user => user.googleEmail === googleEmail);
+            if (isEmailTaken) {
+                alert("This Google account is already linked to another Student ID.");
+                signOut(auth);
+                location.reload();
+                return;
+            }
+
             const newUser = {
                 name: fullName, role: document.getElementById('reg-role').value,
                 college: college, year: document.getElementById('reg-year').value,
-                googleEmail: document.getElementById('reg-google-email').value, 
+                googleEmail: googleEmail, 
                 profilePic: selectedProfilePic || "", isBlocked: false
             };
 
